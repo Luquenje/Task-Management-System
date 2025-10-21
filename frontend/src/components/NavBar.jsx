@@ -12,8 +12,12 @@ function NavBar() {
   return (
     <>
       {" "}
-      <AppBar position="static" elevation={2}>
-        <Container maxWidth="lg">
+      <AppBar
+        position="static"
+        elevation={2}
+        sx={{ backgroundColor: "#BFBFBF" }}
+      >
+        <Container maxWidth="90%" >
           <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
             <Typography
               variant="h6"
@@ -29,10 +33,21 @@ function NavBar() {
                 },
                 transition: "color 0.3s ease",
               }}
+            ></Typography>
+            <Button
+              variant="contained"
+              sx={{
+                backgroundColor: "#5E5E5E",
+                height: "32px",
+                borderRadius: "16px",
+                marginX: "20px",
+                "&:hover": {
+                  backgroundColor: "#5E5E5E", // Hover color
+                },
+              }}
+              disableElevation
+              onClick={handleLogout}
             >
-              TMS
-            </Typography>
-            <Button variant="contained" disableElevation onClick={handleLogout}>
               logout
             </Button>
           </Toolbar>

@@ -49,6 +49,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { userAPI, userGroupAPI } from "../apis/api";
 import NavBar from "../components/NavBar";
 import IOSSwitch from "../components/iOSSwitch";
+import MultiSelect from "../components/SelectMultiple";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -62,13 +63,12 @@ const MenuProps = {
 };
 
 const UserManagementDashboard = () => {
-  const { user } = useAuth();
-  const [tabValue, setTabValue] = useState(0);
+  const { user, isAdmin, isRootAdmin } = useAuth();
 
   // Users state
   const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  // const [filteredUsers, setFilteredUsers] = useState([]);
+  // const [searchQuery, setSearchQuery] = useState("");
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [editFormData, setEditFormData] = useState({});
@@ -123,7 +123,7 @@ const UserManagementDashboard = () => {
       if (response.success) {
         console.log(response.users);
         setUsers(response.users);
-        setFilteredUsers(response.users);
+        // setFilteredUsers(response.users);
       }
     } catch (error) {
       showNotification("Failed to load users", "error");
@@ -222,6 +222,10 @@ const UserManagementDashboard = () => {
         showNotification("User updated successfully");
         setEditingUser(null);
         setEditFormData({});
+        if(user.username === username){
+          // reload page
+          window.location.reload();
+        }
         loadUsers();
       }
     } catch (error) {
@@ -267,7 +271,13 @@ const UserManagementDashboard = () => {
       <NavBar />
       <Container
         maxWidth="xl"
-        sx={{ pt: 4, pb: 4, backgroundColor: "#BFBFBF", m: 0, maxWidth: "100% !important" }}
+        sx={{
+          pt: 4,
+          pb: 4,
+          backgroundColor: "#BFBFBF",
+          m: 0,
+          maxWidth: "100% !important",
+        }}
       >
         {/* Header */}
         <Box
@@ -286,10 +296,11 @@ const UserManagementDashboard = () => {
                 display: "flex",
                 alignItems: "center",
                 gap: 1,
-                color: "#C2C2C2",
+                color: "#787878",
               }}
+              fontWeight={"bold"}
             >
-              User Management Dashboard
+              User Management
             </Typography>
           </Box>
           {/* <Button
@@ -312,140 +323,135 @@ const UserManagementDashboard = () => {
           </Tabs>
         </Paper> */}
 
-        {/* Users Tab */}
-        {tabValue === 0 && (
-          <Paper
-            sx={{ p: 3, backgroundColor: "#D9D9D9", borderRadius: "16px" }}
-          >
-            <Box sx={{ mb: 3 }}>
-              <TextField
-                placeholder="Add Group"
-                variant="outlined"
-                size="small"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                sx={{
-                  backgroundColor: "#F0F0F0",
-                  borderRadius: "16px",
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "16px", // Adjust the value as needed
-                  },
-                }}
-                // InputProps={{
-                //   startAdornment: (
-                //     <InputAdornment position="start">
-                //       <SearchIcon />
-                //     </InputAdornment>
-                //   ),
-                // }}
-                // sx={{ width: 300 }}
-              />
-              <Button
-                variant="contained"
-                sx={{
-                  backgroundColor: "#5E5E5E",
-                  height: "40px",
-                  borderRadius: "16px",
-                  marginX: "20px",
-                  "&:hover": {
-                    backgroundColor: "#5E5E5E", // Hover color
-                  },
-                }}
-              >
-                Add Group
-              </Button>
-            </Box>
+        <Paper sx={{ p: 3, backgroundColor: "#D9D9D9", borderRadius: "16px" }}>
+          <Box sx={{ mb: 3 }}>
+            <TextField
+              placeholder="Enter New Group"
+              variant="outlined"
+              size="small"
+              value={newGroup}
+              onChange={(e) => setNewGroup(e.target.value)}
+              sx={{
+                backgroundColor: "#F0F0F0",
+                borderRadius: "16px",
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "16px", // Adjust the value as needed
+                },
+              }}
+              // InputProps={{
+              //   startAdornment: (
+              //     <InputAdornment position="start">
+              //       <SearchIcon />
+              //     </InputAdornment>
+              //   ),
+              // }}
+              // sx={{ width: 300 }}
+            />
+            <Button
+              variant="contained"
+              sx={{
+                backgroundColor: "#5E5E5E",
+                height: "38px",
+                borderRadius: "16px",
+                marginX: "20px",
+                "&:hover": {
+                  backgroundColor: "#5E5E5E", // Hover color
+                },
+              }}
+              onClick={handleCreateGroup}
+            >
+              Create Group
+            </Button>
+          </Box>
 
-            <TableContainer>
-              <Table
-                sx={{ borderSpacing: "0 10px", borderCollapse: "separate" }}
-              >
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      <strong>Username</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Email</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Password</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>User Group</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Active</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>Actions</strong>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {/* New User Row */}
-                  <TableRow sx={{ backgroundColor: "#EEEEEE" }}>
-                    <TableCell>
-                      <TextField
-                        size="small"
-                        placeholder="Username"
-                        value={newUser.username}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, username: e.target.value })
-                        }
-                        sx={{
-                          backgroundColor: "#D1D1D1",
-                          borderRadius: "20px",
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "20px", // Adjust the value as needed
-                          },
-                        }}
-                        fullWidth
-                        required
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        size="small"
-                        type="email"
-                        placeholder="Email"
-                        value={newUser.email}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, email: e.target.value })
-                        }
-                        sx={{
-                          backgroundColor: "#D1D1D1",
-                          borderRadius: "20px",
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "20px", // Adjust the value as needed
-                          },
-                        }}
-                        fullWidth
-                        required
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        size="small"
-                        type="password"
-                        placeholder="Password"
-                        value={newUser.password}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, password: e.target.value })
-                        }
-                        sx={{
-                          backgroundColor: "#D1D1D1",
-                          borderRadius: "20px",
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "20px", // Adjust the value as needed
-                          },
-                        }}
-                        fullWidth
-                        required
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <FormControl size="small" fullWidth>
+          <TableContainer>
+            <Table sx={{ borderSpacing: "0 10px", borderCollapse: "separate" }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell>
+                    <strong>Username</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Email</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Password</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>User Group</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Active</strong>
+                  </TableCell>
+                  <TableCell align="right">
+                    <strong></strong>
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {/* New User Row */}
+                <TableRow sx={{ backgroundColor: "#EEEEEE" }}>
+                  <TableCell>
+                    <TextField
+                      size="small"
+                      placeholder="Username"
+                      value={newUser.username}
+                      onChange={(e) =>
+                        setNewUser({ ...newUser, username: e.target.value })
+                      }
+                      sx={{
+                        backgroundColor: "#D1D1D1",
+                        borderRadius: "20px",
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: "20px", // Adjust the value as needed
+                        },
+                      }}
+                      fullWidth
+                      required
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      size="small"
+                      type="email"
+                      placeholder="Email"
+                      value={newUser.email}
+                      onChange={(e) =>
+                        setNewUser({ ...newUser, email: e.target.value })
+                      }
+                      sx={{
+                        backgroundColor: "#D1D1D1",
+                        borderRadius: "20px",
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: "20px", // Adjust the value as needed
+                        },
+                      }}
+                      fullWidth
+                      required
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      size="small"
+                      type="password"
+                      placeholder="Password"
+                      value={newUser.password}
+                      onChange={(e) =>
+                        setNewUser({ ...newUser, password: e.target.value })
+                      }
+                      sx={{
+                        backgroundColor: "#D1D1D1",
+                        borderRadius: "20px",
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: "20px", // Adjust the value as needed
+                        },
+                      }}
+                      fullWidth
+                      required
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {/* <FormControl size="small" fullWidth>
                         <InputLabel>User Groups</InputLabel>
                         <Select
                           sx={{
@@ -472,20 +478,39 @@ const UserManagementDashboard = () => {
                             </MenuItem>
                           ))}
                         </Select>
-                      </FormControl>
-                    </TableCell>
-                    <TableCell>
-                      <IOSSwitch
-                        checked={newUser.is_active}
-                        onChange={(e) =>
-                          setNewUser({
-                            ...newUser,
-                            is_active: e.target.checked,
-                          })
-                        }
-                        size="small"
-                      />
-                      {/* <Switch
+                      </FormControl> */}
+                    <MultiSelect
+                      options={userGroups}
+                      placeholder={"Select Groups"}
+                      value={newUser.user_groups}
+                      onChange={(e) =>
+                        setNewUser({
+                          ...newUser,
+                          user_groups: e.target.value,
+                        })
+                      }
+                      sx={{
+                        backgroundColor: "#D1D1D1",
+                        borderRadius: "20px",
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: "20px", // Adjust the value as needed
+                        },
+                      }}
+                      width={240}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <IOSSwitch
+                      checked={newUser.is_active}
+                      onChange={(e) =>
+                        setNewUser({
+                          ...newUser,
+                          is_active: e.target.checked,
+                        })
+                      }
+                      size="small"
+                    />
+                    {/* <Switch
                         checked={newUser.is_active}
                         onChange={(e) =>
                           setNewUser({
@@ -495,9 +520,9 @@ const UserManagementDashboard = () => {
                         }
                         size="small"
                       /> */}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="Create User">
+                  </TableCell>
+                  <TableCell align="right">
+                    {/* <Tooltip title="Create User">
                         <span>
                           <IconButton
                             size="small"
@@ -508,43 +533,94 @@ const UserManagementDashboard = () => {
                             <SaveIcon />
                           </IconButton>
                         </span>
-                      </Tooltip>
-                      {/* <Tooltip title="Clear">
+                      </Tooltip> */}
+                    {/* <Tooltip title="Clear">
                         <IconButton size="small" onClick={handleCancelCreate}>
                           <CancelIcon />
                         </IconButton>
                       </Tooltip> */}
+                    <Button
+                      variant="contained"
+                      sx={{
+                        backgroundColor: "#5E5E5E",
+                        height: "32px",
+                        borderRadius: "16px",
+                        marginX: "20px",
+                        "&:hover": {
+                          backgroundColor: "#5E5E5E", // Hover color
+                        },
+                      }}
+                      disableElevation
+                      onClick={handleCreateUser}
+                    >
+                      Create
+                    </Button>
+                  </TableCell>
+                </TableRow>
+
+                {/* Existing Users */}
+                {loadingUsers ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      Loading...
                     </TableCell>
                   </TableRow>
+                ) : users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      {"No users found"}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  users.map((u) => {
+                    const isEditing = editingUser === u.username;
+                    const isCurrentUser = u.username === user?.username;
+                    const isThisRootAdmin = u.username === "root_admin";
+                    // if (isCurrentUser) return <></>;
 
-                  {/* Existing Users */}
-                  {loadingUsers ? (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center">
-                        Loading...
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredUsers.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center">
-                        {searchQuery
-                          ? "No users found matching your search"
-                          : "No users found"}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredUsers.map((u) => {
-                      const isEditing = editingUser === u.username;
-                      const isCurrentUser = u.username === user?.username;
-                      if (isCurrentUser) return <></>;
+                    return (
+                      <TableRow
+                        key={u.username}
+                        sx={{ backgroundColor: "#EEEEEE" }}
+                      >
+                        {/* Username */}
+                        <TableCell>
+                          <Box
+                            sx={{
+                              // backgroundColor: "#D1D1D1",
+                              padding: "8px 14px",
+                              borderRadius: "16px",
+                            }}
+                          >
+                            <Typography color={"#787878"} fontWeight={"bold"}>
+                              {u.username}
+                            </Typography>
+                          </Box>
+                        </TableCell>
 
-                      return (
-                        <TableRow
-                          key={u.username}
-                          sx={{ backgroundColor: "#EEEEEE" }}
-                        >
-                          {/* Username */}
-                          <TableCell>
+                        {/* Email */}
+                        <TableCell>
+                          {isEditing ? (
+                            <TextField
+                              size="small"
+                              type="email"
+                              value={editFormData.email}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  email: e.target.value,
+                                })
+                              }
+                              sx={{
+                                backgroundColor: "#D1D1D1",
+                                borderRadius: "20px",
+                                "& .MuiOutlinedInput-root": {
+                                  borderRadius: "20px", // Adjust the value as needed
+                                },
+                              }}
+                              fullWidth
+                            />
+                          ) : (
                             <Box
                               sx={{
                                 backgroundColor: "#D1D1D1",
@@ -553,87 +629,64 @@ const UserManagementDashboard = () => {
                               }}
                             >
                               <Typography color={"#787878"} fontWeight={"bold"}>
-                                {u.username}
+                                {u.email}
                               </Typography>
                             </Box>
-                          </TableCell>
+                          )}
+                        </TableCell>
 
-                          {/* Email */}
-                          <TableCell>
-                            {isEditing ? (
-                              <TextField
-                                size="small"
-                                type="email"
-                                value={editFormData.email}
-                                onChange={(e) =>
-                                  setEditFormData({
-                                    ...editFormData,
-                                    email: e.target.value,
-                                  })
-                                }
-                                fullWidth
-                              />
-                            ) : (
-                              <Box
-                                sx={{
-                                  backgroundColor: "#D1D1D1",
-                                  padding: "8px 14px",
-                                  borderRadius: "16px",
-                                }}
+                        {/* Password */}
+                        <TableCell>
+                          {isEditing ? (
+                            <TextField
+                              size="small"
+                              type="password"
+                              placeholder="Leave blank to keep current"
+                              value={editFormData.password}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  password: e.target.value,
+                                })
+                              }
+                              sx={{
+                                backgroundColor: "#D1D1D1",
+                                borderRadius: "20px",
+                                "& .MuiOutlinedInput-root": {
+                                  borderRadius: "20px", // Adjust the value as needed
+                                },
+                              }}
+                              fullWidth
+                            />
+                          ) : (
+                            <Box
+                              sx={{
+                                backgroundColor: "#D1D1D1",
+                                padding: "8px 14px",
+                                borderRadius: "16px",
+                              }}
+                            >
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
                               >
-                                <Typography
-                                  color={"#787878"}
-                                  fontWeight={"bold"}
-                                >
-                                  {u.email}
-                                </Typography>
-                              </Box>
-                            )}
-                          </TableCell>
+                                ••••••••
+                              </Typography>
+                            </Box>
+                          )}
+                        </TableCell>
 
-                          {/* Password */}
-                          <TableCell>
-                            {isEditing ? (
-                              <TextField
-                                size="small"
-                                type="password"
-                                placeholder="Leave blank to keep current"
-                                value={editFormData.password}
-                                onChange={(e) =>
-                                  setEditFormData({
-                                    ...editFormData,
-                                    password: e.target.value,
-                                  })
-                                }
-                                fullWidth
-                              />
-                            ) : (
-                              <Box
-                                sx={{
-                                  backgroundColor: "#D1D1D1",
-                                  padding: "8px 14px",
-                                  borderRadius: "16px",
-                                }}
-                              >
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  ••••••••
-                                </Typography>
-                              </Box>
-                            )}
-                          </TableCell>
-
-                          {/* User Group */}
-                          <TableCell>
-                            <FormControl size="small" fullWidth>
+                        {/* User Group */}
+                        <TableCell>
+                          {/* <FormControl size="small" fullWidth>
                               <InputLabel>User Groups</InputLabel>
                               <Select
                                 multiple
                                 disabled={!isEditing}
                                 value={
-                                  isEditing ? editFormData.user_groups || u.user_groups : u.user_groups
+                                  isEditing
+                                    ? editFormData.user_groups || u.user_groups
+                                    : u.user_groups
                                 }
                                 onChange={(e) =>
                                   setEditFormData({
@@ -650,56 +703,113 @@ const UserManagementDashboard = () => {
                                   </MenuItem>
                                 ))}
                               </Select>
-                            </FormControl>
-                          </TableCell>
+                            </FormControl> */}
+                          <MultiSelect
+                            disabled={!isEditing}
+                            options={userGroups}
+                            placeholder={"Select Groups"}
+                            value={
+                              isEditing
+                                ? editFormData.user_groups || u.user_groups
+                                : u.user_groups
+                            }
+                            onChange={(e) =>
+                              setEditFormData({
+                                ...editFormData,
+                                user_groups: e.target.value,
+                              })
+                            }
+                            sx={{
+                              backgroundColor: "#D1D1D1",
+                              borderRadius: "20px",
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "20px", // Adjust the value as needed
+                              },
+                            }}
+                            width={240}
+                          />
+                        </TableCell>
 
-                          {/* Active Status */}
-                          <TableCell>
-                            {isEditing ? (
-                              <IOSSwitch
-                                checked={editFormData.is_active}
-                                onChange={(e) =>
-                                  setEditFormData({
-                                    ...editFormData,
-                                    is_active: e.target.checked,
-                                  })
-                                }
-                                size="small"
-                              />
-                            ) : (
-                              <IOSSwitch
-                                checked={u.Is_active}
-                                disabled
-                                size="small"
-                              />
-                            )}
-                          </TableCell>
+                        {/* Active Status */}
+                        <TableCell>
+                          {isEditing ? (
+                            <IOSSwitch
+                              disabled={isThisRootAdmin}
+                              checked={editFormData.is_active}
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  is_active: e.target.checked,
+                                })
+                              }
+                              size="small"
+                            />
+                          ) : (
+                            <IOSSwitch
+                              checked={u.Is_active}
+                              disabled
+                              size="small"
+                            />
+                          )}
+                        </TableCell>
 
-                          {/* Actions */}
-                          <TableCell align="right">
-                            {isEditing ? (
-                              <>
-                                <Tooltip title="Save Changes">
-                                  <IconButton
+                        {/* Actions */}
+                        <TableCell align="right" sx={{ width: "220px" }}>
+                          {isEditing ? (
+                            <Box>
+                              {/* <Tooltip title="Save Changes"> */}
+                              <Button
+                                variant="contained"
+                                sx={{
+                                  backgroundColor: "#5E5E5E",
+                                  height: "32px",
+                                  borderRadius: "16px",
+                                  marginX: "20px",
+                                  "&:hover": {
+                                    backgroundColor: "#5E5E5E", // Hover color
+                                  },
+                                }}
+                                disableElevation
+                                onClick={() => handleSaveEdit(u.username)}
+                              >
+                                Save
+                              </Button>
+                              {/* <IconButton
                                     size="small"
                                     color="primary"
                                     onClick={() => handleSaveEdit(u.username)}
                                   >
                                     <SaveIcon />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Cancel">
-                                  <IconButton
-                                    size="small"
-                                    onClick={handleCancelEdit}
-                                  >
-                                    <CancelIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              </>
-                            ) : (
-                              <>
-                                <Tooltip title="Edit User">
+                                  </IconButton> */}
+                              {/* </Tooltip> */}
+                              <Tooltip title="Cancel">
+                                <IconButton
+                                  size="small"
+                                  onClick={handleCancelEdit}
+                                >
+                                  <CancelIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          ) : (
+                            <>
+                              <Button
+                                variant="contained"
+                                sx={{
+                                  backgroundColor: "#5E5E5E",
+                                  height: "32px",
+                                  borderRadius: "16px",
+                                  marginX: "20px",
+                                  "&:hover": {
+                                    backgroundColor: "#5E5E5E", // Hover color
+                                  },
+                                }}
+                                disableElevation
+                                onClick={() => handleStartEdit(u)}
+                              >
+                                Update
+                              </Button>
+                              {/* <Tooltip title="Edit User">
                                   <IconButton
                                     size="small"
                                     color="primary"
@@ -707,142 +817,18 @@ const UserManagementDashboard = () => {
                                   >
                                     <EditIcon />
                                   </IconButton>
-                                </Tooltip>
-                              </>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        )}
-
-        {/* User Groups Tab */}
-        {tabValue === 1 && (
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 3 }}>
-              Manage User Groups
-            </Typography>
-
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      <strong>Group Name</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Users Count</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>Actions</strong>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {/* New Group Row */}
-                  <TableRow sx={{ backgroundColor: "#f0f7ff" }}>
-                    <TableCell>
-                      <TextField
-                        size="small"
-                        placeholder="Group name (max 10 chars)"
-                        value={newGroup}
-                        onChange={(e) => setNewGroup(e.target.value)}
-                        fullWidth
-                        inputProps={{ maxLength: 10 }}
-                      />
-                    </TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="Create Group">
-                        <span>
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            onClick={handleCreateGroup}
-                            disabled={!newGroup.trim()}
-                          >
-                            <SaveIcon />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title="Clear">
-                        <IconButton
-                          size="small"
-                          onClick={() => setNewGroup("")}
-                        >
-                          <CancelIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Existing Groups */}
-                  {loadingGroups ? (
-                    <TableRow>
-                      <TableCell colSpan={3} align="center">
-                        Loading...
-                      </TableCell>
-                    </TableRow>
-                  ) : userGroups.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} align="center">
-                        No user groups found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    userGroups.map((group) => {
-                      const usersInGroup = users.filter(
-                        (u) => u.user_groups === group
-                      ).length;
-                      const canDelete = group !== "admin" && usersInGroup === 0;
-
-                      return (
-                        <TableRow key={group} hover>
-                          <TableCell>
-                            <Chip
-                              label={group}
-                              color={
-                                group === "admin" ? "secondary" : "default"
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>{usersInGroup} user(s)</TableCell>
-                          <TableCell align="right">
-                            <Tooltip
-                              title={
-                                group === "admin"
-                                  ? "Cannot delete admin group"
-                                  : usersInGroup > 0
-                                  ? `Cannot delete group with ${usersInGroup} user(s)`
-                                  : "Delete Group"
-                              }
-                            >
-                              <span>
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={() => handleDeleteGroup(group)}
-                                  disabled={!canDelete}
-                                >
-                                  <DeleteIcon />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        )}
+                                </Tooltip> */}
+                            </>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
 
         {/* Notification Snackbar */}
         <Snackbar

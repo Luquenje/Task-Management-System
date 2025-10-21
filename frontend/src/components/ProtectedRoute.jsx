@@ -33,24 +33,6 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
   if (requireAdmin && !isAdmin) {
     // User is authenticated but not an admin
     return <Navigate to="/applications" state={{ from: location }} replace />;
-    // return (
-    //   <Box
-    //     sx={{
-    //       display: 'flex',
-    //       flexDirection: 'column',
-    //       justifyContent: 'center',
-    //       alignItems: 'center',
-    //       minHeight: '80vh'
-    //     }}
-    //   >
-    //     <Typography variant="h4" color="error" gutterBottom>
-    //       Access Denied
-    //     </Typography>
-    //     <Typography variant="body1" color="text.secondary">
-    //       You don't have permission to access this page.
-    //     </Typography>
-    //   </Box>
-    // );
   }
 
   return children;

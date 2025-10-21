@@ -12,6 +12,9 @@ require("dotenv").config({ path: "./.env" });
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,10}$/;
+
 const dbConfig = {
   host: process.env.DB_HOST || "localhost",
   port: process.env.DB_PORT || 3306,
@@ -137,12 +140,11 @@ const requireAdmin = (req, res, next) => {
       });
     }
 
-    // user_groups is already an array from the database
     let userGroups = results[0].user_groups || [];
 
     // Check if user has admin privileges
     // Either they are root admin (hardcoded) or have 'admin' group
-    const isRootAdmin = req.user.username === "admin"; // Hardcoded root admin
+    const isRootAdmin = req.user.username === "root_admin"; // Hardcoded root admin
     const hasAdminGroup = userGroups.includes("admin");
 
     if (!isRootAdmin && !hasAdminGroup) {
@@ -159,6 +161,41 @@ const requireAdmin = (req, res, next) => {
     next();
   });
 };
+
+function checkGroup(username, groupname) {
+  if (!connection) {
+    return res.status(500).json({
+      success: false,
+      error: "Database connection not initialized",
+    });
+  }
+
+  // Check user's groups from database
+  const query = "SELECT user_groups FROM users WHERE username = ?";
+
+  connection.query(query, [username], (err, results) => {
+    if (err) {
+      console.error("Error checking admin status:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Database error",
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: "Admin access required",
+        message: "User not found",
+      });
+    }
+
+    // user_groups is already an array from the database
+    let userGroups = results[0].user_groups || [];
+
+    return userGroups.includes(groupname);
+  });
+}
 
 app.post("/login", async (req, res) => {
   try {
@@ -234,7 +271,7 @@ app.post("/login", async (req, res) => {
           httpOnly: true, // Cannot be accessed by JavaScript
           secure: process.env.NODE_ENV === "production", // HTTPS only in production
           sameSite: "lax", // CSRF protection
-          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+          maxAge: 1 * 60 * 60 * 1000, // 1 hours
         });
 
         // Return user info (without password and without token in body)
@@ -404,6 +441,13 @@ app.post("/api/users", authenticateJWT, requireAdmin, async (req, res) => {
       });
     }
 
+    if (!emailRegex.test(email) || !passwordRegex.test(password)) {
+      return res.status(400).json({
+        success: false,
+        error: "Email or password does not meet requirements",
+      });
+    }
+
     // Validate user_groups is an array
     let userGroupsArray = [];
     if (user_groups) {
@@ -490,6 +534,18 @@ app.put(
     try {
       const { username } = req.params;
       const { email, password, user_groups, is_active } = req.body;
+      // const { isRootAdmin } = req.user;
+
+      if (
+        !emailRegex.test(email) || password
+          ? !passwordRegex.test(password)
+          : false
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "Email or password does not meet requirements",
+        });
+      }
 
       // Check if user exists
       const checkQuery = "SELECT username FROM users WHERE username = ?";
@@ -523,6 +579,8 @@ app.put(
           updateValues.push(hashedPassword);
         }
 
+        const isRootAdmin = username === "root_admin";
+
         if (user_groups !== undefined) {
           // Validate user_groups is an array
           let userGroupsArray = [];
@@ -535,6 +593,14 @@ app.put(
             });
           }
 
+          const hasNoAdmin = !userGroupsArray.includes("admin");
+          if (hasNoAdmin && isRootAdmin) {
+            return res.status(400).json({
+              success: false,
+              error: "Cannot remove admin group for this user",
+            });
+          }
+
           // user_groups is stored as JSON in database but received as array
           const userGroupsJson = JSON.stringify(userGroupsArray);
           updateFields.push("user_groups = ?");
@@ -542,6 +608,12 @@ app.put(
         }
 
         if (is_active !== undefined) {
+          if (isRootAdmin && is_active === false) {
+            return res.status(400).json({
+              success: false,
+              error: "Cannot disable this user",
+            });
+          }
           updateFields.push("Is_active = ?");
           updateValues.push(is_active);
         }
@@ -590,48 +662,6 @@ app.put(
         message: error.message,
       });
     }
-  }
-);
-// Delete user
-app.delete(
-  "/api/users/:username",
-  authenticateJWT,
-  requireAdmin,
-  (req, res) => {
-    const { username } = req.params;
-
-    // Prevent deleting yourself
-    if (username === req.user.username) {
-      return res.status(400).json({
-        success: false,
-        error: "Cannot delete your own account",
-      });
-    }
-
-    const deleteQuery = "DELETE FROM users WHERE username = ?";
-
-    connection.query(deleteQuery, [username], (err, result) => {
-      if (err) {
-        console.error("Error deleting user:", err);
-        return res.status(500).json({
-          success: false,
-          error: "Failed to delete user",
-          message: err.message,
-        });
-      }
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json({
-          success: false,
-          error: "User not found",
-        });
-      }
-
-      res.json({
-        success: true,
-        message: "User deleted successfully",
-      });
-    });
   }
 );
 
