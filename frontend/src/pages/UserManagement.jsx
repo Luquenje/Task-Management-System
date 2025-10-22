@@ -257,7 +257,7 @@ const UserManagementDashboard = () => {
   const isNewUserValid = newUser.username && newUser.email && newUser.password;
 
   return (
-    <>
+    <div>
       <NavBar />
       <Container
         maxWidth="xl"
@@ -265,7 +265,8 @@ const UserManagementDashboard = () => {
           pt: 4,
           pb: 4,
           backgroundColor: "#BFBFBF",
-          m: 0,
+          mt: 8,
+          // m: 0,
           maxWidth: "100% !important",
         }}
       >
@@ -836,7 +837,7 @@ const UserManagementDashboard = () => {
           </Alert>
         </Snackbar>
       </Container>
-    </>
+    </div>
   );
 };
 

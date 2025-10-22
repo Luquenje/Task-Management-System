@@ -39,27 +39,27 @@ function NavBar() {
     <>
       {" "}
       <AppBar
-        position="static"
-        elevation={2}
-        sx={{ backgroundColor: "#BFBFBF" }}
+        // position="static"
+        // elevation={2}
+        sx={{ backgroundColor: "#BFBFBF", boxShadow: "0" }}
       >
         <Container maxWidth="90%">
           <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
             <Typography
               variant="h6"
-              component={RouterLink}
-              to="/"
+              // component={RouterLink}
+              // to="/"
               sx={{
                 fontWeight: 700,
                 fontSize: "1.5rem",
                 color: "inherit",
                 textDecoration: "none",
-                "&:hover": {
-                  color: "primary.light",
-                },
+                // "&:hover": {
+                //   color: "primary.light",
+                // },
                 transition: "color 0.3s ease",
               }}
-            ></Typography>
+            >Task Management System</Typography>
             <Box>
               {isAdmin &&
                 (!isUserMgmtPage ? (

@@ -596,7 +596,7 @@ app.put(
           if (hasNoAdmin && isRootAdmin) {
             return res.status(400).json({
               success: false,
-              error: "Cannot remove admin group for this user",
+              error: "Cannot remove admin group for root admin",
             });
           }
 
