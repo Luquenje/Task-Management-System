@@ -105,5 +105,80 @@ export const userGroupAPI = {
   }
 };
 
+// Application API
+export const applicationAPI = {
+  // Get all applications
+  getAllApplications: async () => {
+    const response = await api.get('/api/applications');
+    return response.data;
+  },
+
+  // Get single application
+  getApplication: async (acronym) => {
+    const response = await api.get(`/api/applications/${acronym}`);
+    return response.data;
+  },
+
+  // Create application
+  createApplication: async (appData) => {
+    const response = await api.post('/api/applications', appData);
+    return response.data;
+  },
+
+  // Update application
+  updateApplication: async (acronym, appData) => {
+    const response = await api.put(`/api/applications/${acronym}`, appData);
+    return response.data;
+  }
+};
+
+// Plan API
+export const planAPI = {
+  // Get all plans for an application
+  getAllPlans: async (acronym) => {
+    const response = await api.get(`/api/applications/${acronym}/plans`);
+    return response.data;
+  },
+
+  // Create plan
+  createPlan: async (acronym, planData) => {
+    const response = await api.post(`/api/applications/${acronym}/plans`, planData);
+    return response.data;
+  },
+
+  // Update plan
+  updatePlan: async (acronym, planName, planData) => {
+    const response = await api.put(`/api/applications/${acronym}/plans/${planName}`, planData);
+    return response.data;
+  }
+};
+
+// Task API
+export const taskAPI = {
+  // Get all tasks for an application
+  getAllTasks: async (acronym) => {
+    const response = await api.get(`/api/applications/${acronym}/tasks`);
+    return response.data;
+  },
+
+  // Create task
+  createTask: async (acronym, taskData) => {
+    const response = await api.post(`/api/applications/${acronym}/tasks`, taskData);
+    return response.data;
+  },
+
+  // Update task state (state transition)
+  updateTaskState: async (acronym, taskId, stateData) => {
+    const response = await api.patch(`/api/applications/${acronym}/tasks/${taskId}/state`, stateData);
+    return response.data;
+  },
+
+  // Update task details
+  updateTask: async (acronym, taskId, taskData) => {
+    const response = await api.patch(`/api/applications/${acronym}/tasks/${taskId}`, taskData);
+    return response.data;
+  }
+};
+
 export default api;
 

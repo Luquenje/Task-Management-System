@@ -11,9 +11,10 @@ import Home from "./pages/Home";
 // import About from './pages/About'
 // import Login from './pages/Login'
 import UserManagementDashboard from "./pages/UserManagement";
+import ApplicationsDashboard from "./pages/ApplicationsDashboard";
+import KanbanBoard from "./pages/KanbanBoard";
 
 import "./App.css";
-import ApplicationsDashboard from "./pages/ApplicationsDashboard";
 
 function Default() {
   const [count, setCount] = useState(0);
@@ -75,6 +76,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ApplicationsDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/applications/:acronym/kanban"
+                element={
+                  <ProtectedRoute>
+                    <KanbanBoard />
                   </ProtectedRoute>
                 }
               />

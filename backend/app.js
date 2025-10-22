@@ -664,6 +664,859 @@ app.put(
   }
 );
 
+// ============= APPLICATION MANAGEMENT API =============
+
+// Get all applications
+app.get("/api/applications", authenticateJWT, (req, res) => {
+  const query = "SELECT * FROM application ORDER BY App_Acronym";
+
+  connection.query(query, (err, results) => {
+    if (err) {
+      console.error("Error fetching applications:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch applications",
+      });
+    }
+
+    res.json({
+      success: true,
+      applications: results,
+      count: results.length,
+    });
+  });
+});
+
+// Get single application
+app.get("/api/applications/:acronym", authenticateJWT, (req, res) => {
+  const { acronym } = req.params;
+  const query = "SELECT * FROM application WHERE App_Acronym = ?";
+
+  connection.query(query, [acronym], (err, results) => {
+    if (err) {
+      console.error("Error fetching application:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch application",
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Application not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      application: results[0],
+    });
+  });
+});
+
+// Create new application (Admin only)
+app.post("/api/applications", authenticateJWT, requireAdmin, (req, res) => {
+  const {
+    App_Acronym,
+    App_Description,
+    App_startDate,
+    App_endDate,
+    App_permit_Open,
+    App_permit_toDoList,
+    App_permit_Doing,
+    App_permit_Done,
+  } = req.body;
+
+  // Validation
+  if (!App_Acronym) {
+    return res.status(400).json({
+      success: false,
+      error: "Application acronym is required",
+    });
+  }
+
+  const insertQuery = `INSERT INTO application
+    (App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate,
+     App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done)
+    VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?)`;
+
+  connection.query(
+    insertQuery,
+    [
+      App_Acronym,
+      App_Description || null,
+      App_startDate || null,
+      App_endDate || null,
+      App_permit_Open || null,
+      App_permit_toDoList || null,
+      App_permit_Doing || null,
+      App_permit_Done || null,
+    ],
+    (err, result) => {
+      if (err) {
+        console.error("Error creating application:", err);
+
+        if (err.code === "ER_DUP_ENTRY") {
+          return res.status(409).json({
+            success: false,
+            error: "Application acronym already exists",
+          });
+        }
+
+        return res.status(500).json({
+          success: false,
+          error: "Failed to create application",
+          message: err.message,
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: "Application created successfully",
+        application: { App_Acronym },
+      });
+    }
+  );
+});
+
+// Update application (Admin only)
+app.put(
+  "/api/applications/:acronym",
+  authenticateJWT,
+  requireAdmin,
+  (req, res) => {
+    const { acronym } = req.params;
+    const {
+      App_Description,
+      App_startDate,
+      App_endDate,
+      App_permit_Open,
+      App_permit_toDoList,
+      App_permit_Doing,
+      App_permit_Done,
+    } = req.body;
+
+    // Build update query dynamically
+    let updateFields = [];
+    let updateValues = [];
+
+    if (App_Description !== undefined) {
+      updateFields.push("App_Description = ?");
+      updateValues.push(App_Description);
+    }
+    if (App_startDate !== undefined) {
+      updateFields.push("App_startDate = ?");
+      updateValues.push(App_startDate);
+    }
+    if (App_endDate !== undefined) {
+      updateFields.push("App_endDate = ?");
+      updateValues.push(App_endDate);
+    }
+    if (App_permit_Open !== undefined) {
+      updateFields.push("App_permit_Open = ?");
+      updateValues.push(App_permit_Open);
+    }
+    if (App_permit_toDoList !== undefined) {
+      updateFields.push("App_permit_toDoList = ?");
+      updateValues.push(App_permit_toDoList);
+    }
+    if (App_permit_Doing !== undefined) {
+      updateFields.push("App_permit_Doing = ?");
+      updateValues.push(App_permit_Doing);
+    }
+    if (App_permit_Done !== undefined) {
+      updateFields.push("App_permit_Done = ?");
+      updateValues.push(App_permit_Done);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "No fields to update",
+      });
+    }
+
+    updateValues.push(acronym);
+    const updateQuery = `UPDATE application SET ${updateFields.join(
+      ", "
+    )} WHERE App_Acronym = ?`;
+
+    connection.query(updateQuery, updateValues, (err, result) => {
+      if (err) {
+        console.error("Error updating application:", err);
+        return res.status(500).json({
+          success: false,
+          error: "Failed to update application",
+          message: err.message,
+        });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "Application not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Application updated successfully",
+      });
+    });
+  }
+);
+
+// ============= PLAN MANAGEMENT API =============
+
+// Get all plans for an application
+app.get("/api/applications/:acronym/plans", authenticateJWT, (req, res) => {
+  const { acronym } = req.params;
+  const query =
+    "SELECT * FROM plan WHERE Plan_app_Acronym = ? ORDER BY Plan_startDate";
+
+  connection.query(query, [acronym], (err, results) => {
+    if (err) {
+      console.error("Error fetching plans:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch plans",
+      });
+    }
+
+    res.json({
+      success: true,
+      plans: results,
+      count: results.length,
+    });
+  });
+});
+
+// Create new plan (Project Manager)
+app.post("/api/applications/:acronym/plans", authenticateJWT, (req, res) => {
+  const { acronym } = req.params;
+  const { Plan_MVP_name, Plan_startDate, Plan_endDate, Plan_color } = req.body;
+
+  // Validation
+  if (!Plan_MVP_name) {
+    return res.status(400).json({
+      success: false,
+      error: "Plan name is required",
+    });
+  }
+
+  const insertQuery = `INSERT INTO plan
+    (Plan_MVP_name, Plan_startDate, Plan_endDate, Plan_app_Acronym, Plan_color)
+    VALUES (?, ?, ?, ?, ?)`;
+
+  connection.query(
+    insertQuery,
+    [
+      Plan_MVP_name,
+      Plan_startDate || null,
+      Plan_endDate || null,
+      acronym,
+      Plan_color || "#3498db",
+    ],
+    (err, result) => {
+      if (err) {
+        console.error("Error creating plan:", err);
+
+        if (err.code === "ER_DUP_ENTRY") {
+          return res.status(409).json({
+            success: false,
+            error: "Plan name already exists for this application",
+          });
+        }
+
+        if (err.code === "ER_NO_REFERENCED_ROW_2") {
+          return res.status(404).json({
+            success: false,
+            error: "Application not found",
+          });
+        }
+
+        return res.status(500).json({
+          success: false,
+          error: "Failed to create plan",
+          message: err.message,
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: "Plan created successfully",
+        plan: { Plan_MVP_name, Plan_app_Acronym: acronym },
+      });
+    }
+  );
+});
+
+// Update plan
+app.put(
+  "/api/applications/:acronym/plans/:planName",
+  authenticateJWT,
+  (req, res) => {
+    const { acronym, planName } = req.params;
+    const { Plan_startDate, Plan_endDate, Plan_color } = req.body;
+
+    // Build update query dynamically
+    let updateFields = [];
+    let updateValues = [];
+
+    if (Plan_startDate !== undefined) {
+      updateFields.push("Plan_startDate = ?");
+      updateValues.push(Plan_startDate);
+    }
+    if (Plan_endDate !== undefined) {
+      updateFields.push("Plan_endDate = ?");
+      updateValues.push(Plan_endDate);
+    }
+    if (Plan_color !== undefined) {
+      updateFields.push("Plan_color = ?");
+      updateValues.push(Plan_color);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "No fields to update",
+      });
+    }
+
+    updateValues.push(planName, acronym);
+    const updateQuery = `UPDATE plan SET ${updateFields.join(
+      ", "
+    )} WHERE Plan_MVP_name = ? AND Plan_app_Acronym = ?`;
+
+    connection.query(updateQuery, updateValues, (err, result) => {
+      if (err) {
+        console.error("Error updating plan:", err);
+        return res.status(500).json({
+          success: false,
+          error: "Failed to update plan",
+          message: err.message,
+        });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "Plan not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Plan updated successfully",
+      });
+    });
+  }
+);
+
+// ============= TASK MANAGEMENT API =============
+
+// Helper function to check if user is in a specific group
+function checkUserInGroup(username, groupname, callback) {
+  if (!connection) {
+    return callback(new Error("Database connection not initialized"), false);
+  }
+
+  const query = "SELECT user_groups FROM users WHERE username = ?";
+
+  connection.query(query, [username], (err, results) => {
+    if (err) {
+      return callback(err, false);
+    }
+
+    if (results.length === 0) {
+      return callback(null, false);
+    }
+
+    const userGroups = results[0].user_groups || [];
+    const isInGroup = userGroups.includes(groupname);
+
+    callback(null, isInGroup);
+  });
+}
+
+// Helper function to add note to task notes (audit trail)
+function addTaskNote(taskId, username, state, noteText, callback) {
+  const timestamp = new Date().toISOString();
+  const noteEntry = {
+    username,
+    state,
+    timestamp,
+    note: noteText,
+  };
+
+  // Get current notes
+  const getNotesQuery = "SELECT Task_notes FROM task WHERE Task_id = ?";
+
+  connection.query(getNotesQuery, [taskId], (err, results) => {
+    if (err) {
+      return callback(err);
+    }
+
+    if (results.length === 0) {
+      return callback(new Error("Task not found"));
+    }
+
+    let notes = [];
+    if (results[0].Task_notes) {
+      try {
+        notes = JSON.parse(results[0].Task_notes);
+      } catch (e) {
+        notes = [];
+      }
+    }
+
+    // Add new note to beginning (most recent first)
+    notes.unshift(noteEntry);
+
+    // Update task with new notes
+    const updateQuery = "UPDATE task SET Task_notes = ? WHERE Task_id = ?";
+    connection.query(updateQuery, [JSON.stringify(notes), taskId], callback);
+  });
+}
+
+// Get all tasks for an application
+app.get("/api/applications/:acronym/tasks", authenticateJWT, (req, res) => {
+  const { acronym } = req.params;
+  const query =
+    "SELECT * FROM task WHERE Task_app_Acronym = ? ORDER BY Task_createDate DESC";
+
+  connection.query(query, [acronym], (err, results) => {
+    if (err) {
+      console.error("Error fetching tasks:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch tasks",
+      });
+    }
+
+    // Parse Task_notes JSON for each task
+    const tasksWithParsedNotes = results.map((task) => {
+      let notes = [];
+      if (task.Task_notes) {
+        try {
+          notes = JSON.parse(task.Task_notes);
+        } catch (e) {
+          notes = [];
+        }
+      }
+      return {
+        ...task,
+        Task_notes: notes,
+      };
+    });
+
+    res.json({
+      success: true,
+      tasks: tasksWithParsedNotes,
+      count: tasksWithParsedNotes.length,
+    });
+  });
+});
+
+// Create new task (Open state) - requires App_permit_Open permission
+app.post("/api/applications/:acronym/tasks", authenticateJWT, (req, res) => {
+  const { acronym } = req.params;
+  const { Task_name, Task_description, Task_plan } = req.body;
+  const username = req.user.username;
+
+  // Validation
+  if (!Task_name) {
+    return res.status(400).json({
+      success: false,
+      error: "Task name is required",
+    });
+  }
+
+  // Get application details to check permissions and get running number
+  const getAppQuery = "SELECT * FROM application WHERE App_Acronym = ?";
+
+  connection.query(getAppQuery, [acronym], (err, appResults) => {
+    if (err) {
+      console.error("Error fetching application:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Database error",
+      });
+    }
+
+    if (appResults.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Application not found",
+      });
+    }
+
+    const app = appResults[0];
+    const requiredGroup = app.App_permit_Open;
+
+    // Check if user has permission to create tasks (Open state)
+    if (!requiredGroup) {
+      return res.status(403).json({
+        success: false,
+        error: "No group is permitted to create tasks for this application",
+      });
+    }
+
+    checkUserInGroup(username, requiredGroup, (err, isInGroup) => {
+      if (err) {
+        console.error("Error checking user group:", err);
+        return res.status(500).json({
+          success: false,
+          error: "Database error",
+        });
+      }
+
+      if (!isInGroup) {
+        return res.status(403).json({
+          success: false,
+          error: `You must be in the '${requiredGroup}' group to create tasks`,
+        });
+      }
+
+      // User has permission, proceed with task creation
+      // Generate Task_id: [App_Acronym]_[App_Rnumber]
+      const newRnumber = app.App_Rnumber + 1;
+      const taskId = `${acronym}_${newRnumber}`;
+
+      // Create initial note
+      const initialNote = {
+        username,
+        state: "Open",
+        timestamp: new Date().toISOString(),
+        note: "Task created",
+      };
+
+      const insertTaskQuery = `INSERT INTO task
+        (Task_id, Task_name, Task_description, Task_notes, Task_plan,
+         Task_app_Acronym, Task_state, Task_creator, Task_owner, Task_createDate)
+        VALUES (?, ?, ?, ?, ?, ?, 'Open', ?, ?, NOW())`;
+
+      const updateAppQuery =
+        "UPDATE application SET App_Rnumber = ? WHERE App_Acronym = ?";
+
+      // Start transaction
+      connection.beginTransaction((err) => {
+        if (err) {
+          console.error("Error starting transaction:", err);
+          return res.status(500).json({
+            success: false,
+            error: "Database error",
+          });
+        }
+
+        // Insert task
+        connection.query(
+          insertTaskQuery,
+          [
+            taskId,
+            Task_name,
+            Task_description || null,
+            JSON.stringify([initialNote]),
+            Task_plan || null,
+            acronym,
+            username,
+            username,
+          ],
+          (err, taskResult) => {
+            if (err) {
+              return connection.rollback(() => {
+                console.error("Error creating task:", err);
+                res.status(500).json({
+                  success: false,
+                  error: "Failed to create task",
+                  message: err.message,
+                });
+              });
+            }
+
+            // Update application running number
+            connection.query(
+              updateAppQuery,
+              [newRnumber, acronym],
+              (err, appResult) => {
+                if (err) {
+                  return connection.rollback(() => {
+                    console.error("Error updating running number:", err);
+                    res.status(500).json({
+                      success: false,
+                      error: "Failed to update running number",
+                    });
+                  });
+                }
+
+                // Commit transaction
+                connection.commit((err) => {
+                  if (err) {
+                    return connection.rollback(() => {
+                      console.error("Error committing transaction:", err);
+                      res.status(500).json({
+                        success: false,
+                        error: "Failed to commit transaction",
+                      });
+                    });
+                  }
+
+                  res.status(201).json({
+                    success: true,
+                    message: "Task created successfully",
+                    task: {
+                      Task_id: taskId,
+                      Task_name,
+                      Task_state: "Open",
+                    },
+                  });
+                });
+              }
+            );
+          }
+        );
+      });
+    });
+  });
+});
+
+// Update task state (state transitions with permission checks)
+app.patch(
+  "/api/applications/:acronym/tasks/:taskId/state",
+  authenticateJWT,
+  (req, res) => {
+    const { acronym, taskId } = req.params;
+    const { new_state, note } = req.body;
+    const username = req.user.username;
+
+    const validStates = ["Open", "ToDo", "Doing", "Done", "Closed"];
+
+    if (!validStates.includes(new_state)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid state",
+      });
+    }
+
+    // Get current task and application details
+    const getTaskAndAppQuery = `
+      SELECT t.*, a.*
+      FROM task t
+      JOIN application a ON t.Task_app_Acronym = a.App_Acronym
+      WHERE t.Task_id = ? AND t.Task_app_Acronym = ?
+    `;
+
+    connection.query(getTaskAndAppQuery, [taskId, acronym], (err, results) => {
+      if (err) {
+        console.error("Error fetching task:", err);
+        return res.status(500).json({
+          success: false,
+          error: "Database error",
+        });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "Task not found",
+        });
+      }
+
+      const task = results[0];
+      const currentState = task.Task_state;
+
+      // Define valid state transitions
+      const validTransitions = {
+        Open: ["ToDo"],
+        ToDo: ["Doing"],
+        Doing: ["Done", "ToDo"],
+        Done: ["Closed", "Doing"],
+        Closed: [],
+      };
+
+      // Check if transition is valid
+      if (!validTransitions[currentState].includes(new_state)) {
+        return res.status(400).json({
+          success: false,
+          error: `Cannot transition from ${currentState} to ${new_state}`,
+        });
+      }
+
+      // Check permissions based on new state
+      let requiredGroup = null;
+      switch (new_state) {
+        case "ToDo":
+          requiredGroup = task.App_permit_toDoList;
+          break;
+        case "Doing":
+          requiredGroup = task.App_permit_Doing;
+          break;
+        case "Done":
+          requiredGroup = task.App_permit_Doing;
+          break;
+        case "Closed":
+          requiredGroup = task.App_permit_Done;
+          break;
+      }
+
+      if (!requiredGroup) {
+        return res.status(403).json({
+          success: false,
+          error: `No group is permitted to transition to ${new_state}`,
+        });
+      }
+
+      checkUserInGroup(username, requiredGroup, (err, isInGroup) => {
+        if (err) {
+          console.error("Error checking user group:", err);
+          return res.status(500).json({
+            success: false,
+            error: "Database error",
+          });
+        }
+
+        if (!isInGroup) {
+          return res.status(403).json({
+            success: false,
+            error: `You must be in the '${requiredGroup}' group to perform this action`,
+          });
+        }
+
+        // User has permission, proceed with state transition
+        const updateQuery = `UPDATE task
+          SET Task_state = ?, Task_owner = ?
+          WHERE Task_id = ?`;
+
+        connection.query(
+          updateQuery,
+          [new_state, username, taskId],
+          (err, result) => {
+            if (err) {
+              console.error("Error updating task state:", err);
+              return res.status(500).json({
+                success: false,
+                error: "Failed to update task state",
+              });
+            }
+
+            // Add audit trail note
+            const noteText =
+              note || `Task transitioned from ${currentState} to ${new_state}`;
+            addTaskNote(taskId, username, new_state, noteText, (err) => {
+              if (err) {
+                console.error("Error adding task note:", err);
+                // Don't fail the request if note fails
+              }
+
+              // TODO: Send email notification if transitioning to Done state
+              // This would require email configuration
+
+              res.json({
+                success: true,
+                message: "Task state updated successfully",
+                task: {
+                  Task_id: taskId,
+                  Task_state: new_state,
+                  Task_owner: username,
+                },
+              });
+            });
+          }
+        );
+      });
+    });
+  }
+);
+
+// Update task details (name, description, plan)
+app.patch(
+  "/api/applications/:acronym/tasks/:taskId",
+  authenticateJWT,
+  (req, res) => {
+    const { acronym, taskId } = req.params;
+    const { Task_description, Task_plan, note } = req.body;
+    const username = req.user.username;
+
+    // Build update query dynamically
+    let updateFields = [];
+    let updateValues = [];
+
+    if (Task_description !== undefined) {
+      updateFields.push("Task_description = ?");
+      updateValues.push(Task_description);
+    }
+    if (Task_plan !== undefined) {
+      updateFields.push("Task_plan = ?");
+      updateValues.push(Task_plan);
+    }
+
+    if (updateFields.length === 0 && !note) {
+      return res.status(400).json({
+        success: false,
+        error: "No fields to update",
+      });
+    }
+
+    // Always update owner to current user (last touch)
+    updateFields.push("Task_owner = ?");
+    updateValues.push(username);
+
+    updateValues.push(taskId, acronym);
+
+    const updateQuery = `UPDATE task SET ${updateFields.join(
+      ", "
+    )} WHERE Task_id = ? AND Task_app_Acronym = ?`;
+
+    // Get current state for note
+    const getStateQuery =
+      "SELECT Task_state FROM task WHERE Task_id = ? AND Task_app_Acronym = ?";
+
+    connection.query(getStateQuery, [taskId, acronym], (err, results) => {
+      if (err || results.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "Task not found",
+        });
+      }
+
+      const currentState = results[0].Task_state;
+
+      connection.query(updateQuery, updateValues, (err, result) => {
+        if (err) {
+          console.error("Error updating task:", err);
+          return res.status(500).json({
+            success: false,
+            error: "Failed to update task",
+            message: err.message,
+          });
+        }
+
+        if (result.affectedRows === 0) {
+          return res.status(404).json({
+            success: false,
+            error: "Task not found",
+          });
+        }
+
+        // Add note if provided
+        if (note) {
+          addTaskNote(taskId, username, currentState, note, (err) => {
+            if (err) {
+              console.error("Error adding task note:", err);
+            }
+          });
+        }
+
+        res.json({
+          success: true,
+          message: "Task updated successfully",
+        });
+      });
+    });
+  }
+);
+
 // ============= USER GROUPS API (Admin Only) =============
 
 // Get all user groups
