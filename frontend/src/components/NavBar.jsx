@@ -41,7 +41,7 @@ function NavBar() {
       <AppBar
         // position="static"
         // elevation={2}
-        sx={{ backgroundColor: "#BFBFBF", boxShadow: "0" }}
+        sx={{ backgroundColor: "#F5F5F5", boxShadow: "0" }}
       >
         <Container maxWidth="90%">
           <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
@@ -51,8 +51,8 @@ function NavBar() {
               // to="/"
               sx={{
                 fontWeight: 700,
-                fontSize: "1.5rem",
-                color: "inherit",
+                fontSize: "2rem",
+                color: "#787878",
                 textDecoration: "none",
                 // "&:hover": {
                 //   color: "primary.light",

@@ -5,7 +5,7 @@ const ApplicationsDashboard = () => {
   return (
     <>
       <NavBar />
-      <Container maxWidth="sm">
+      <Container maxWidth="sm" sx={{ mt: 10 }}>
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
           help
         </Container>

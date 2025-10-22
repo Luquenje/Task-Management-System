@@ -212,7 +212,7 @@ const UserManagementDashboard = () => {
         showNotification("User updated successfully");
         setEditingUser(null);
         setEditFormData({});
-        if(user.username === username){
+        if (user.username === username) {
           // reload page
           window.location.reload();
         }
@@ -264,8 +264,8 @@ const UserManagementDashboard = () => {
         sx={{
           pt: 4,
           pb: 4,
-          backgroundColor: "#BFBFBF",
-          mt: 8,
+          backgroundColor: "#F5F5F5",
+          mt: 2,
           // m: 0,
           maxWidth: "100% !important",
         }}
@@ -279,7 +279,7 @@ const UserManagementDashboard = () => {
             alignItems: "center",
           }}
         >
-          <Box>
+          {/* <Box>
             <Typography
               variant="h4"
               gutterBottom
@@ -293,7 +293,7 @@ const UserManagementDashboard = () => {
             >
               User Management
             </Typography>
-          </Box>
+          </Box> */}
           {/* <Button
           variant="outlined"
           startIcon={<RefreshIcon />}
@@ -315,44 +315,61 @@ const UserManagementDashboard = () => {
         </Paper> */}
 
         <Paper sx={{ p: 3, backgroundColor: "#D9D9D9", borderRadius: "16px" }}>
-          <Box sx={{ mb: 3 }}>
-            <TextField
-              placeholder="Enter New Group"
-              variant="outlined"
-              size="small"
-              value={newGroup}
-              onChange={(e) => setNewGroup(e.target.value)}
-              sx={{
-                backgroundColor: "#F0F0F0",
-                borderRadius: "16px",
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "16px", // Adjust the value as needed
-                },
-              }}
-              // InputProps={{
-              //   startAdornment: (
-              //     <InputAdornment position="start">
-              //       <SearchIcon />
-              //     </InputAdornment>
-              //   ),
-              // }}
-              // sx={{ width: 300 }}
-            />
-            <Button
-              variant="contained"
-              sx={{
-                backgroundColor: "#5E5E5E",
-                height: "38px",
-                borderRadius: "16px",
-                marginX: "20px",
-                "&:hover": {
-                  backgroundColor: "#5E5E5E", // Hover color
-                },
-              }}
-              onClick={handleCreateGroup}
-            >
-              Create Group
-            </Button>
+          <Box display="flex" justifyContent="space-between">
+            <Box>
+              <Typography
+                variant="h5"
+                gutterBottom
+                sx={{
+                  // display: "flex",
+                  // alignItems: "center",
+                  gap: 1,
+                  color: "#787878",
+                }}
+                fontWeight={"bold"}
+              >
+                User Management
+              </Typography>
+            </Box>
+            <Box sx={{ mb: 3 }}>
+              <TextField
+                placeholder="Enter New Group"
+                variant="outlined"
+                size="small"
+                value={newGroup}
+                onChange={(e) => setNewGroup(e.target.value)}
+                sx={{
+                  backgroundColor: "#F0F0F0",
+                  borderRadius: "16px",
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "16px", // Adjust the value as needed
+                  },
+                }}
+                // InputProps={{
+                //   startAdornment: (
+                //     <InputAdornment position="start">
+                //       <SearchIcon />
+                //     </InputAdornment>
+                //   ),
+                // }}
+                // sx={{ width: 300 }}
+              />
+              <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: "#5E5E5E",
+                  height: "38px",
+                  borderRadius: "16px",
+                  marginX: "20px",
+                  "&:hover": {
+                    backgroundColor: "#5E5E5E", // Hover color
+                  },
+                }}
+                onClick={handleCreateGroup}
+              >
+                Create Group
+              </Button>
+            </Box>
           </Box>
 
           <TableContainer>
@@ -572,7 +589,10 @@ const UserManagementDashboard = () => {
                     return (
                       <TableRow
                         key={u.username}
-                        sx={{ backgroundColor: "#EEEEEE" }}
+                        sx={{
+                          backgroundColor: isEditing ? "#EEEEEE" : "#D9D9D9",
+                          transition: "background-color .2s",
+                        }}
                       >
                         {/* Username */}
                         <TableCell>
@@ -614,7 +634,7 @@ const UserManagementDashboard = () => {
                           ) : (
                             <Box
                               sx={{
-                                backgroundColor: "#D1D1D1",
+                                backgroundColor: "#EEEEEE",
                                 padding: "8px 14px",
                                 borderRadius: "16px",
                               }}
@@ -652,7 +672,7 @@ const UserManagementDashboard = () => {
                           ) : (
                             <Box
                               sx={{
-                                backgroundColor: "#D1D1D1",
+                                backgroundColor: "#EEEEEE",
                                 padding: "8px 14px",
                                 borderRadius: "16px",
                               }}
@@ -711,7 +731,9 @@ const UserManagementDashboard = () => {
                               })
                             }
                             sx={{
-                              backgroundColor: "#D1D1D1",
+                              backgroundColor: isEditing
+                                ? "#D1D1D1"
+                                : "#EEEEEE",
                               borderRadius: "20px",
                               "& .MuiOutlinedInput-root": {
                                 borderRadius: "20px", // Adjust the value as needed
