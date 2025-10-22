@@ -398,7 +398,12 @@ const UserManagementDashboard = () => {
               </TableHead>
               <TableBody>
                 {/* New User Row */}
-                <TableRow sx={{ backgroundColor: "#EEEEEE" }}>
+                <TableRow
+                  sx={{
+                    backgroundColor: "#EEEEEE",
+                    boxShadow: "0.3em 0.3em 0.5em rgb(0 0 0 / 10%)",
+                  }}
+                >
                   <TableCell>
                     <TextField
                       size="small"
@@ -592,6 +597,7 @@ const UserManagementDashboard = () => {
                         sx={{
                           backgroundColor: isEditing ? "#EEEEEE" : "#D9D9D9",
                           transition: "background-color .2s",
+                          boxShadow: "0.3em 0.3em 0.5em rgb(0 0 0 / 10%)",
                         }}
                       >
                         {/* Username */}
