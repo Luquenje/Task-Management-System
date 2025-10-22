@@ -13,11 +13,7 @@ import {
   CircularProgress,
   OutlinedInput,
 } from "@mui/material";
-import {
-  Visibility,
-  VisibilityOff,
-  Login as LoginIcon,
-} from "@mui/icons-material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useAuth } from "../contexts/AuthContext";
 
 const Login = () => {
@@ -54,15 +50,14 @@ const Login = () => {
 
     if (result.success) {
       console.log("success");
-      // console.log(isAdmin)
-      // console.log(result)
-      const isAdmin = result?.user?.user_groups?.includes("admin");
-      // Redirect to the page they tried to visit or home
-      if (isAdmin) {
-        navigate("/usermanagement", { replace: true });
-      } else {
-        navigate("/applications", { replace: true });
-      }
+      navigate("/applications", { replace: true });
+      // const isAdmin = result?.user?.user_groups?.includes("admin");
+      // // Redirect to the page they tried to visit or home
+      // if (isAdmin) {
+      //   navigate("/usermanagement", { replace: true });
+      // } else {
+      //   navigate("/applications", { replace: true });
+      // }
     } else {
       setError(result.error);
     }
@@ -108,7 +103,7 @@ const Login = () => {
         </Typography>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={{ mb: 2, width: "100%" }}>
             {error}
           </Alert>
         )}
@@ -125,12 +120,14 @@ const Login = () => {
         >
           <TextField
             margin="normal"
-            required
+            // required
             fullWidth
             id="username"
-            label="Username"
+            // label="Username"
+            placeholder="Username"
             name="username"
-            autoComplete="username"
+            // autoComplete="username"
+            h
             autoFocus
             value={formData.username}
             onChange={handleChange}
@@ -163,29 +160,31 @@ const Login = () => {
 
           <TextField
             margin="normal"
-            required
+            // required
             fullWidth
             name="password"
-            label="Password"
+            // label="Password"
             type={showPassword ? "text" : "password"}
             id="password"
-            autoComplete="current-password"
+            // autoComplete="current-password"
             value={formData.password}
             onChange={handleChange}
             disabled={loading}
-            // InputProps={{
-            //   endAdornment: (
-            //     <InputAdornment position="end">
-            //       <IconButton
-            //         aria-label="toggle password visibility"
-            //         onClick={handleTogglePassword}
-            //         edge="end"
-            //       >
-            //         {showPassword ? <VisibilityOff /> : <Visibility />}
-            //       </IconButton>
-            //     </InputAdornment>
-            //   ),
-            // }}
+            placeholder="Password"
+            variant="outlined"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleTogglePassword}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
             sx={{
               "& .MuiOutlinedInput-root": {
                 backgroundColor: "#e8e8e8", // Light gray background
@@ -235,7 +234,7 @@ const Login = () => {
             }}
             disabled={loading}
           >
-            {loading ? <CircularProgress size={24} /> : "Sign In"}
+            {loading ? <CircularProgress size={24} /> : "Login"}
           </Button>
         </Box>
       </Box>

@@ -85,7 +85,6 @@ const authenticateJWT = (req, res, next) => {
   }
 
   // check browser type
-
   if (decoded.browserType !== req.headers["user-agent"]) {
     return res.status(401).json({
       success: false,
@@ -205,7 +204,7 @@ app.post("/login", async (req, res) => {
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        error: "Username and password are required",
+        error: "Username and password cannot be empty",
       });
     }
 
@@ -238,7 +237,7 @@ app.post("/login", async (req, res) => {
         if (!user.Is_active) {
           return res.status(401).json({
             success: false,
-            error: "Account is deactivated",
+            error: "Account is disabled",
           });
         }
 
@@ -340,13 +339,13 @@ app.get("/me", authenticateJWT, (req, res) => {
     if (!user.Is_active) {
       return res.status(401).json({
         success: false,
-        error: "Account is deactivated",
+        error: "Account is disabled",
       });
     }
 
     // user_groups is already an array from the database
     let userGroups = [];
-    console.log("Raw user_groups from DB (/me):", user.user_groups);
+    // console.log("Raw user_groups from DB (/me):", user.user_groups);
     userGroups = user.user_groups || [];
 
     res.json({

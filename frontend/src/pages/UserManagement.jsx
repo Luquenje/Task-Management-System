@@ -121,7 +121,7 @@ const UserManagementDashboard = () => {
       setLoadingUsers(true);
       const response = await userAPI.getAllUsers();
       if (response.success) {
-        console.log(response.users);
+        // console.log(response.users);
         setUsers(response.users);
         // setFilteredUsers(response.users);
       }
@@ -180,16 +180,6 @@ const UserManagementDashboard = () => {
         "error"
       );
     }
-  };
-
-  const handleCancelCreate = () => {
-    setNewUser({
-      username: "",
-      email: "",
-      password: "",
-      user_groups: [],
-      is_active: true,
-    });
   };
 
   // Edit user
