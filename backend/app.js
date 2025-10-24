@@ -161,6 +161,49 @@ const requireAdmin = (req, res, next) => {
   });
 };
 
+const checkUserStatus = (req, res, next) => {
+  if (!req.user || !req.user.username) {
+    return res.status(403).json({
+      success: false,
+      error: "Admin access required",
+      message: "Authentication required",
+    });
+  }
+
+  if (!connection) {
+    return res.status(500).json({
+      success: false,
+      error: "Database connection not initialized",
+    });
+  }
+
+  // Check user's groups from database
+  const query = "SELECT Is_active FROM users WHERE username = ?";
+
+  connection.query(query, [req.user.username], (err, results) => {
+    if (err) {
+      console.error("Error checking user status:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Database error",
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: "User not found",
+        message: "User not found",
+      });
+    }
+
+    console.log(results[0]);
+
+    req.user.is_active = results[0].Is_active;
+    next();
+  });
+};
+
 function checkGroup(username, groupname) {
   if (!connection) {
     return res.status(500).json({
@@ -529,11 +572,20 @@ app.put(
   "/api/users/:username",
   authenticateJWT,
   requireAdmin,
+  checkUserStatus,
   async (req, res) => {
     try {
       const { username } = req.params;
       const { email, password, user_groups, is_active } = req.body;
-      // const { isRootAdmin } = req.user;
+      const { is_active: curr_user_is_active } = req.user;
+      // const { isRootAdmin } = req.user;s
+      console.log(curr_user_is_active);
+      if (!curr_user_is_active) {
+        return res.status(400).json({
+          success: false,
+          error: "User has been disabled",
+        });
+      }
 
       if (
         !emailRegex.test(email) || password
