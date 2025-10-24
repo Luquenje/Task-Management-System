@@ -164,7 +164,7 @@ const UserManagementDashboard = () => {
     try {
       const response = await userAPI.createUser(newUser);
       if (response.success) {
-        showNotification("User created successfully");
+        showNotification(`User ${newUser.username} added successfully`);
         setNewUser({
           username: "",
           email: "",
@@ -209,7 +209,7 @@ const UserManagementDashboard = () => {
 
       const response = await userAPI.updateUser(username, updateData);
       if (response.success) {
-        showNotification("User updated successfully");
+        showNotification(`User ${username} updated`);
         setEditingUser(null);
         setEditFormData({});
         if (user.username === username) {
@@ -236,7 +236,7 @@ const UserManagementDashboard = () => {
     try {
       const response = await userGroupAPI.createGroup(newGroup.trim());
       if (response.success) {
-        showNotification("User group created successfully");
+        showNotification(`User group ${newGroup.trim()} created successfully`);
         setNewGroup("");
         loadUserGroups();
       }
@@ -386,13 +386,13 @@ const UserManagementDashboard = () => {
                     <strong>Password</strong>
                   </TableCell>
                   <TableCell>
-                    <strong>User Group</strong>
+                    <strong>Group</strong>
                   </TableCell>
                   <TableCell>
-                    <strong>Active</strong>
+                    <strong>Status</strong>
                   </TableCell>
-                  <TableCell align="right">
-                    <strong></strong>
+                  <TableCell align="center" sx={{ paddingLeft: "42px" }}>
+                    <strong>Actions</strong>
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -494,7 +494,7 @@ const UserManagementDashboard = () => {
                       </FormControl> */}
                     <MultiSelect
                       options={userGroups}
-                      placeholder={"Select Groups"}
+                      placeholder={"Select Groups..."}
                       value={newUser.user_groups}
                       onChange={(e) =>
                         setNewUser({
@@ -724,7 +724,7 @@ const UserManagementDashboard = () => {
                           <MultiSelect
                             disabled={!isEditing}
                             options={userGroups}
-                            placeholder={"Select Groups"}
+                            placeholder={"No Groups"}
                             value={
                               isEditing
                                 ? editFormData.user_groups || u.user_groups
