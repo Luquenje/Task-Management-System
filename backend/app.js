@@ -210,7 +210,7 @@ app.post("/login", async (req, res) => {
 
     // Find user by username or email
     const findUserQuery =
-      "SELECT username, email, password, Is_active, user_groups FROM users WHERE username = ? OR email = ?";
+      "SELECT username, email, password, Is_active, user_groups FROM users WHERE BINARY username = ? OR email = ?";
 
     connection.query(
       findUserQuery,
@@ -237,7 +237,7 @@ app.post("/login", async (req, res) => {
         if (!user.Is_active) {
           return res.status(401).json({
             success: false,
-            error: "Account is disabled",
+            error: "Disabled Account",
           });
         }
 
@@ -339,7 +339,7 @@ app.get("/me", authenticateJWT, (req, res) => {
     if (!user.Is_active) {
       return res.status(401).json({
         success: false,
-        error: "Account is disabled",
+        error: "Disabled Account",
       });
     }
 
