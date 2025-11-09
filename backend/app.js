@@ -1396,6 +1396,16 @@ app.patch(
         });
       }
 
+      // Business rule: Task must have a plan before releasing to ToDo
+      if (currentState === "Open" && new_state === "ToDo") {
+        if (!task.Task_plan) {
+          return res.status(400).json({
+            success: false,
+            error: "Task must be assigned to a plan before releasing to ToDo state",
+          });
+        }
+      }
+
       // Check permissions based on state transition
       let requiredGroup = null;
 
@@ -1499,7 +1509,7 @@ app.patch(
   }
 );
 
-// Update task details (name, description, plan)
+// Update task details (description, plan assignment)
 app.patch(
   "/api/applications/:acronym/tasks/:taskId",
   authenticateJWT,
@@ -1508,94 +1518,137 @@ app.patch(
     const { Task_description, Task_plan, note } = req.body;
     const username = req.user.username;
 
-    // Build update query dynamically
-    let updateFields = [];
-    let updateValues = [];
-
-    if (Task_description !== undefined) {
-      updateFields.push("Task_description = ?");
-      updateValues.push(Task_description);
-    }
-    if (Task_plan !== undefined) {
-      updateFields.push("Task_plan = ?");
-      updateValues.push(Task_plan);
-    }
-
-    if (updateFields.length === 0 && !note) {
+    if (!Task_description && Task_plan === undefined && !note) {
       return res.status(400).json({
         success: false,
         error: "No fields to update",
       });
     }
 
-    // Always update owner to current user (last touch)
-    // updateFields.push("Task_owner = ?");
-    // updateValues.push(username);
+    // Get task and application details to check permissions
+    const getTaskAndAppQuery = `
+      SELECT t.*, a.*
+      FROM task t
+      JOIN application a ON t.Task_app_Acronym = a.App_Acronym
+      WHERE t.Task_id = ? AND t.Task_app_Acronym = ?
+    `;
 
-    updateValues.push(taskId, acronym);
+    connection.query(getTaskAndAppQuery, [taskId, acronym], (err, results) => {
+      if (err) {
+        console.error("Error fetching task:", err);
+        return res.status(500).json({
+          success: false,
+          error: "Database error",
+        });
+      }
 
-    const updateQuery = `UPDATE task SET ${updateFields.join(
-      ", "
-    )} WHERE Task_id = ? AND Task_app_Acronym = ?`;
-
-    // Get current state for note
-    const getStateQuery =
-      "SELECT Task_state FROM task WHERE Task_id = ? AND Task_app_Acronym = ?";
-
-    connection.query(getStateQuery, [taskId, acronym], (err, results) => {
-      if (err || results.length === 0) {
+      if (results.length === 0) {
         return res.status(404).json({
           success: false,
           error: "Task not found",
         });
       }
 
-      const currentState = results[0].Task_state;
-      // Add note if provided
-      if (note) {
-        addTaskNote(taskId, username, currentState, note, (err) => {
+      const task = results[0];
+      const currentState = task.Task_state;
+
+      // Check permissions for plan assignment
+      // Only users with App_permit_Open can assign/change plans in Open state
+      if (Task_plan !== undefined && currentState === "Open") {
+        const requiredGroup = task.App_permit_Open;
+
+        if (!requiredGroup) {
+          return res.status(403).json({
+            success: false,
+            error: "No group is permitted to edit tasks in Open state",
+          });
+        }
+
+        checkUserInGroup(username, requiredGroup, (err, isInGroup) => {
           if (err) {
-            console.error("Error adding task note:", err);
-          }
-        });
-      }
-      if (updateFields.length !== 0) {
-        connection.query(updateQuery, updateValues, (err, result) => {
-          if (err) {
-            console.error("Error updating task:", err);
+            console.error("Error checking user group:", err);
             return res.status(500).json({
               success: false,
-              error: "Failed to update task",
-              message: err.message,
+              error: "Database error",
             });
           }
 
-          if (result.affectedRows === 0) {
-            return res.status(404).json({
+          if (!isInGroup) {
+            return res.status(403).json({
               success: false,
-              error: "Task not found",
+              error: `You must be in the '${requiredGroup}' group to edit tasks in Open state`,
             });
           }
 
-          // // Add note if provided
-          // if (note) {
-          //   addTaskNote(taskId, username, currentState, note, (err) => {
-          //     if (err) {
-          //       console.error("Error adding task note:", err);
-          //     }
-          //   });
-          // }
+          // User has permission, proceed with update
+          performTaskUpdate();
+        });
+      } else {
+        // No plan update or not in Open state, proceed with update
+        performTaskUpdate();
+      }
 
+      function performTaskUpdate() {
+        // Build update query dynamically
+        let updateFields = [];
+        let updateValues = [];
+
+        if (Task_description !== undefined) {
+          updateFields.push("Task_description = ?");
+          updateValues.push(Task_description);
+        }
+        if (Task_plan !== undefined) {
+          updateFields.push("Task_plan = ?");
+          updateValues.push(Task_plan || null);
+        }
+
+        updateValues.push(taskId, acronym);
+
+        const updateQuery = updateFields.length > 0
+          ? `UPDATE task SET ${updateFields.join(", ")} WHERE Task_id = ? AND Task_app_Acronym = ?`
+          : null;
+
+        // Add note if provided
+        if (note) {
+          addTaskNote(taskId, username, currentState, note, (err) => {
+            if (err) {
+              console.error("Error adding task note:", err);
+            }
+          });
+        }
+
+        // Execute update if there are fields to update
+        if (updateQuery) {
+          connection.query(updateQuery, updateValues, (err, result) => {
+            if (err) {
+              console.error("Error updating task:", err);
+              return res.status(500).json({
+                success: false,
+                error: "Failed to update task",
+                message: err.message,
+              });
+            }
+
+            if (result.affectedRows === 0) {
+              return res.status(404).json({
+                success: false,
+                error: "Task not found",
+              });
+            }
+
+            res.json({
+              success: true,
+              message: "Task updated successfully",
+            });
+          });
+        } else if (note) {
+          // Only note was added, no field updates
           res.json({
             success: true,
-            message: "Task updated successfully",
+            message: "Note added successfully",
           });
-        });
+        }
       }
-    });
-    res.json({
-      success: true,
-      message: "Task updated successfully",
     });
   }
 );

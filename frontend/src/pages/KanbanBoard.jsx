@@ -53,8 +53,11 @@ const KanbanBoard = () => {
   const [createTaskDialog, setCreateTaskDialog] = useState(false);
   const [createAppDialog, setCreateAppDialog] = useState(false);
   const [createPlanDialog, setCreatePlanDialog] = useState(false);
+  const [viewPlansDialog, setViewPlansDialog] = useState(false);
+  const [editPlanDialog, setEditPlanDialog] = useState(false);
   const [taskDetailDialog, setTaskDetailDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState(null);
 
   // Form states
   const [taskForm, setTaskForm] = useState({
@@ -396,6 +399,31 @@ const KanbanBoard = () => {
     }
   };
 
+  // Handle edit plan
+  const handleEditPlan = async () => {
+    try {
+      setFormError(null);
+
+      const response = await planAPI.updatePlan(
+        selectedPlan.Plan_app_Acronym,
+        selectedPlan.Plan_MVP_name,
+        {
+          Plan_startDate: planForm.Plan_startDate || null,
+          Plan_endDate: planForm.Plan_endDate || null,
+          Plan_color: planForm.Plan_color,
+        }
+      );
+
+      if (response.success) {
+        setEditPlanDialog(false);
+        setSelectedPlan(null);
+        fetchAllData();
+      }
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Failed to update plan");
+    }
+  };
+
   // Render task card
   const renderTaskCard = (task) => {
     const state = task.Task_state;
@@ -497,23 +525,8 @@ const KanbanBoard = () => {
 
     switch (state) {
       case "Open":
-        return (
-          canTransitionToToDo(appAcronym) && (
-            <Button
-              size="small"
-              variant="contained"
-              color="primary"
-              startIcon={<ArrowForwardIcon />}
-              sx={buttonStyle}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleStateTransition(task, "ToDo");
-              }}
-            >
-              Release
-            </Button>
-          )
-        );
+        // No transition buttons for Open state - must release from task dialog
+        return null;
 
       case "ToDo":
         return (
@@ -735,35 +748,57 @@ const KanbanBoard = () => {
               )}
 
               {isInGroup("pm") && applications.length > 0 && (
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => {
-                    setPlanForm({
-                      Plan_MVP_name: "",
-                      Plan_startDate: "",
-                      Plan_endDate: "",
-                      Plan_color: "#3498db",
-                      app_acronym:
-                        applications.length > 0
-                          ? applications[0].App_Acronym
-                          : "",
-                    });
-                    setFormError(null);
-                    setCreatePlanDialog(true);
-                  }}
-                  sx={{
-                    backgroundColor: "#5f6368",
-                    textTransform: "none",
-                    borderRadius: "20px",
-                    px: 3,
-                    "&:hover": {
-                      backgroundColor: "#4a4d50",
-                    },
-                  }}
-                >
-                  Add Plan
-                </Button>
+                <>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => {
+                      setPlanForm({
+                        Plan_MVP_name: "",
+                        Plan_startDate: "",
+                        Plan_endDate: "",
+                        Plan_color: "#3498db",
+                        app_acronym:
+                          applications.length > 0
+                            ? applications[0].App_Acronym
+                            : "",
+                      });
+                      setFormError(null);
+                      setCreatePlanDialog(true);
+                    }}
+                    sx={{
+                      backgroundColor: "#5f6368",
+                      textTransform: "none",
+                      borderRadius: "20px",
+                      px: 3,
+                      "&:hover": {
+                        backgroundColor: "#4a4d50",
+                      },
+                    }}
+                  >
+                    Add Plan
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      setFormError(null);
+                      setViewPlansDialog(true);
+                    }}
+                    sx={{
+                      textTransform: "none",
+                      borderRadius: "20px",
+                      px: 3,
+                      borderColor: "#5f6368",
+                      color: "#5f6368",
+                      "&:hover": {
+                        borderColor: "#4a4d50",
+                        backgroundColor: "rgba(95, 99, 104, 0.04)",
+                      },
+                    }}
+                  >
+                    Manage Plans
+                  </Button>
+                </>
               )}
 
               {canCreateAnyTask && (
@@ -1140,6 +1175,201 @@ const KanbanBoard = () => {
           </DialogActions>
         </Dialog>
 
+        {/* View/Manage Plans Dialog */}
+        <Dialog
+          open={viewPlansDialog}
+          onClose={() => setViewPlansDialog(false)}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+            },
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>Manage Plans</DialogTitle>
+          <DialogContent>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: "block" }}>
+              View and edit existing plans
+            </Typography>
+
+            {allPlans.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+                No plans created yet
+              </Typography>
+            ) : (
+              <Box>
+                {applications.map((app) => {
+                  const appPlans = allPlans.filter(p => p.app_acronym === app.App_Acronym);
+                  if (appPlans.length === 0) return null;
+
+                  return (
+                    <Box key={app.App_Acronym} sx={{ mb: 3 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1, color: "#5f6368" }}>
+                        {app.App_Acronym}
+                      </Typography>
+                      {appPlans.map((plan) => (
+                        <Paper
+                          key={plan.Plan_MVP_name}
+                          sx={{
+                            p: 2,
+                            mb: 1,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            borderLeft: `4px solid ${plan.Plan_color}`,
+                          }}
+                        >
+                          <Box>
+                            <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                              {plan.Plan_MVP_name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {plan.Plan_startDate && plan.Plan_endDate
+                                ? `${new Date(plan.Plan_startDate).toLocaleDateString()} - ${new Date(plan.Plan_endDate).toLocaleDateString()}`
+                                : "No dates set"}
+                            </Typography>
+                          </Box>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => {
+                              setSelectedPlan(plan);
+                              setPlanForm({
+                                Plan_MVP_name: plan.Plan_MVP_name,
+                                Plan_startDate: plan.Plan_startDate || "",
+                                Plan_endDate: plan.Plan_endDate || "",
+                                Plan_color: plan.Plan_color,
+                                app_acronym: plan.app_acronym,
+                              });
+                              setFormError(null);
+                              setEditPlanDialog(true);
+                            }}
+                            sx={{
+                              textTransform: "none",
+                              borderColor: "#5f6368",
+                              color: "#5f6368",
+                            }}
+                          >
+                            Edit
+                          </Button>
+                        </Paper>
+                      ))}
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => setViewPlansDialog(false)}
+              sx={{ textTransform: "none", color: "#5f6368" }}
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit Plan Dialog */}
+        <Dialog
+          open={editPlanDialog}
+          onClose={() => {
+            setEditPlanDialog(false);
+            setSelectedPlan(null);
+          }}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+            },
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>Edit Plan</DialogTitle>
+          <DialogContent>
+            {formError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {formError}
+              </Alert>
+            )}
+
+            <TextField
+              margin="dense"
+              label="Plan Name (MVP)"
+              fullWidth
+              disabled
+              value={planForm.Plan_MVP_name}
+              helperText="Plan name cannot be changed"
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="Start Date"
+              type="date"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={planForm.Plan_startDate}
+              onChange={(e) =>
+                setPlanForm({ ...planForm, Plan_startDate: e.target.value })
+              }
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="End Date"
+              type="date"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={planForm.Plan_endDate}
+              onChange={(e) =>
+                setPlanForm({ ...planForm, Plan_endDate: e.target.value })
+              }
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="Color"
+              type="color"
+              fullWidth
+              value={planForm.Plan_color}
+              onChange={(e) =>
+                setPlanForm({ ...planForm, Plan_color: e.target.value })
+              }
+              helperText="Color for visual distinction on task cards"
+              sx={{ mb: 1 }}
+            />
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => {
+                setEditPlanDialog(false);
+                setSelectedPlan(null);
+              }}
+              sx={{ textTransform: "none", color: "#5f6368" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditPlan}
+              variant="contained"
+              sx={{
+                textTransform: "none",
+                backgroundColor: "#5f6368",
+                "&:hover": {
+                  backgroundColor: "#4a4d50",
+                },
+              }}
+            >
+              Update
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         {/* Create Task Dialog */}
         <Dialog
           open={createTaskDialog}
@@ -1304,6 +1534,68 @@ const KanbanBoard = () => {
 
                 <Divider sx={{ my: 2 }} />
 
+                {/* Plan Selection Section - Only for Open state and PM */}
+                {selectedTask.Task_state === "Open" &&
+                  canTransitionToToDo(selectedTask.Task_app_Acronym) && (
+                    <>
+                      <Typography variant="h6" sx={{ mb: 2 }}>
+                        Release Task to ToDo
+                      </Typography>
+                      <TextField
+                        margin="dense"
+                        label="Plan"
+                        fullWidth
+                        required
+                        select
+                        value={selectedTask.Task_plan || ""}
+                        onChange={async (e) => {
+                          try {
+                            setFormError(null);
+                            const response = await taskAPI.updateTask(
+                              selectedTask.Task_app_Acronym,
+                              selectedTask.Task_id,
+                              {
+                                Task_plan: e.target.value || null,
+                              }
+                            );
+
+                            if (response.success) {
+                              // Refresh all data
+                              await fetchAllData();
+                              // Update selected task
+                              const updatedTasks = await taskAPI.getAllTasks(
+                                selectedTask.Task_app_Acronym
+                              );
+                              const updatedTask = updatedTasks.tasks.find(
+                                (t) => t.Task_id === selectedTask.Task_id
+                              );
+                              setSelectedTask(updatedTask);
+                            }
+                          } catch (err) {
+                            setFormError(
+                              err.response?.data?.error || "Failed to update plan"
+                            );
+                          }
+                        }}
+                        helperText="Select a plan before releasing (required)"
+                        sx={{ mb: 2 }}
+                      >
+                        <MenuItem value="">None</MenuItem>
+                        {getPlansForApp(selectedTask.Task_app_Acronym).map(
+                          (plan) => (
+                            <MenuItem
+                              key={plan.Plan_MVP_name}
+                              value={plan.Plan_MVP_name}
+                            >
+                              {plan.Plan_MVP_name}
+                            </MenuItem>
+                          )
+                        )}
+                      </TextField>
+                      <Divider sx={{ my: 2 }} />
+                    </>
+                  )}
+
                 {/* Notes Section */}
                 <Typography variant="h6" sx={{ mb: 2 }}>
                   Notes (Audit Trail)
@@ -1366,11 +1658,26 @@ const KanbanBoard = () => {
               </DialogContent>
               <DialogActions>
                 <Button onClick={handleCloseTaskDetail}>Close</Button>
-                {selectedTask.Task_state !== "Closed" &&
+                {selectedTask.Task_state === "Open" &&
+                canTransitionToToDo(selectedTask.Task_app_Acronym) ? (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    disabled={!selectedTask.Task_plan}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      await handleStateTransition(selectedTask, "ToDo");
+                    }}
+                  >
+                    Release to ToDo
+                  </Button>
+                ) : (
+                  selectedTask.Task_state !== "Closed" &&
                   renderStateTransitionButtons(
                     selectedTask,
                     selectedTask.Task_state
-                  )}
+                  )
+                )}
               </DialogActions>
             </>
           )}
