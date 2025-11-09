@@ -1247,7 +1247,7 @@ app.post("/api/applications/:acronym/tasks", authenticateJWT, (req, res) => {
       const insertTaskQuery = `INSERT INTO task
         (Task_id, Task_name, Task_description, Task_notes, Task_plan,
          Task_app_Acronym, Task_state, Task_creator, Task_owner, Task_createDate)
-        VALUES (?, ?, ?, ?, ?, ?, 'Open', ?, ?, NOW())`;
+        VALUES (?, ?, ?, ?, ?, ?, 'Open', ?, NULL, NOW())`;
 
       const updateAppQuery =
         "UPDATE application SET App_Rnumber = ? WHERE App_Acronym = ?";
@@ -1262,7 +1262,7 @@ app.post("/api/applications/:acronym/tasks", authenticateJWT, (req, res) => {
           });
         }
 
-        // Insert task
+        // Insert task (Task_owner is NULL initially)
         connection.query(
           insertTaskQuery,
           [
@@ -1272,7 +1272,6 @@ app.post("/api/applications/:acronym/tasks", authenticateJWT, (req, res) => {
             JSON.stringify([initialNote]),
             Task_plan || null,
             acronym,
-            username,
             username,
           ],
           (err, taskResult) => {
@@ -1436,13 +1435,23 @@ app.patch(
         }
 
         // User has permission, proceed with state transition
-        const updateQuery = `UPDATE task
-          SET Task_state = ?, Task_owner = ?
-          WHERE Task_id = ?`;
+        // Only set Task_owner when transitioning to Doing state (dev picks up task)
+        let updateQuery, updateParams;
+        if (new_state === "Doing") {
+          updateQuery = `UPDATE task
+            SET Task_state = ?, Task_owner = ?
+            WHERE Task_id = ?`;
+          updateParams = [new_state, username, taskId];
+        } else {
+          updateQuery = `UPDATE task
+            SET Task_state = ?
+            WHERE Task_id = ?`;
+          updateParams = [new_state, taskId];
+        }
 
         connection.query(
           updateQuery,
-          [new_state, username, taskId],
+          updateParams,
           (err, result) => {
             if (err) {
               console.error("Error updating task state:", err);
@@ -1470,7 +1479,7 @@ app.patch(
                 task: {
                   Task_id: taskId,
                   Task_state: new_state,
-                  Task_owner: username,
+                  Task_owner: new_state === "Doing" ? username : task.Task_owner,
                 },
               });
             });

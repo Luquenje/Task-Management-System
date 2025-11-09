@@ -75,14 +75,6 @@ function App() {
                 path="/applications"
                 element={
                   <ProtectedRoute>
-                    <ApplicationsDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/applications/:acronym/kanban"
-                element={
-                  <ProtectedRoute>
                     <KanbanBoard />
                   </ProtectedRoute>
                 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Box,
@@ -10,7 +10,6 @@ import {
   CardContent,
   CardActions,
   Chip,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -20,16 +19,16 @@ import {
   Alert,
   Divider,
   Stack,
-  Tooltip,
+  Select,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import {
   Add as AddIcon,
-  ArrowBack as ArrowBackIcon,
   PlayArrow as PlayArrowIcon,
   Done as DoneIcon,
   Close as CloseIcon,
   ArrowForward as ArrowForwardIcon,
-  Edit as EditIcon,
   KeyboardArrowLeft as BackIcon,
 } from "@mui/icons-material";
 import NavBar from "../components/NavBar";
@@ -37,21 +36,23 @@ import { useAuth } from "../contexts/AuthContext";
 import { applicationAPI, planAPI, taskAPI, userGroupAPI } from "../apis/api";
 
 const KanbanBoard = () => {
-  const { acronym } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [application, setApplication] = useState(null);
-  const [plans, setPlans] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [userGroups, setUserGroups] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [allPlans, setAllPlans] = useState([]);
+  const [allTasks, setAllTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Filter state
+  const [selectedApp, setSelectedApp] = useState("all");
+
   // Dialog states
   const [createTaskDialog, setCreateTaskDialog] = useState(false);
-  const [taskDetailDialog, setTaskDetailDialog] = useState(false);
+  const [createAppDialog, setCreateAppDialog] = useState(false);
   const [createPlanDialog, setCreatePlanDialog] = useState(false);
+  const [taskDetailDialog, setTaskDetailDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
   // Form states
@@ -59,36 +60,64 @@ const KanbanBoard = () => {
     Task_name: "",
     Task_description: "",
     Task_plan: "",
+    app_acronym: "",
+  });
+  const [appForm, setAppForm] = useState({
+    App_Acronym: "",
+    App_Description: "",
+    App_startDate: "",
+    App_endDate: "",
   });
   const [planForm, setPlanForm] = useState({
     Plan_MVP_name: "",
     Plan_startDate: "",
     Plan_endDate: "",
     Plan_color: "#3498db",
+    app_acronym: "",
   });
   const [noteText, setNoteText] = useState("");
   const [formError, setFormError] = useState(null);
 
   useEffect(() => {
-    fetchData();
-  }, [acronym]);
+    fetchAllData();
+  }, []);
 
-  const fetchData = async () => {
+  const fetchAllData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [appRes, plansRes, tasksRes, groupsRes] = await Promise.all([
-        applicationAPI.getApplication(acronym),
-        planAPI.getAllPlans(acronym),
-        taskAPI.getAllTasks(acronym),
-        userGroupAPI.getAllGroups(),
-      ]);
+      // Fetch all applications
+      const appsRes = await applicationAPI.getAllApplications();
+      if (appsRes.success) {
+        setApplications(appsRes.applications);
 
-      if (appRes.success) setApplication(appRes.application);
-      if (plansRes.success) setPlans(plansRes.plans);
-      if (tasksRes.success) setTasks(tasksRes.tasks);
-      if (groupsRes.success) setUserGroups(groupsRes.groups);
+        // Fetch plans and tasks for all applications
+        const allPlansData = [];
+        const allTasksData = [];
+
+        for (const app of appsRes.applications) {
+          // Fetch plans
+          const plansRes = await planAPI.getAllPlans(app.App_Acronym);
+          if (plansRes.success) {
+            // Add app acronym to each plan for reference
+            const plansWithApp = plansRes.plans.map(plan => ({
+              ...plan,
+              app_acronym: app.App_Acronym
+            }));
+            allPlansData.push(...plansWithApp);
+          }
+
+          // Fetch tasks
+          const tasksRes = await taskAPI.getAllTasks(app.App_Acronym);
+          if (tasksRes.success) {
+            allTasksData.push(...tasksRes.tasks);
+          }
+        }
+
+        setAllPlans(allPlansData);
+        setAllTasks(allTasksData);
+      }
     } catch (err) {
       setError(err.response?.data?.error || "Failed to fetch data");
     } finally {
@@ -102,45 +131,62 @@ const KanbanBoard = () => {
     return user.user_groups?.includes(groupName) || false;
   };
 
-  // Check permissions for task creation
-  const canCreateTask = () => {
-    return application && isInGroup(application.App_permit_Open);
+  // Check permissions for specific application
+  const canCreateTaskForApp = (appAcronym) => {
+    const app = applications.find(a => a.App_Acronym === appAcronym);
+    return app && isInGroup(app.App_permit_Open);
   };
 
-  // Check permissions for state transitions
-  const canTransitionToToDo = () => {
-    return application && isInGroup(application.App_permit_toDoList);
+  const canTransitionToToDo = (appAcronym) => {
+    const app = applications.find(a => a.App_Acronym === appAcronym);
+    return app && isInGroup(app.App_permit_toDoList);
   };
 
-  const canTransitionToDoing = () => {
-    return application && isInGroup(application.App_permit_Doing);
+  const canTransitionToDoing = (appAcronym) => {
+    const app = applications.find(a => a.App_Acronym === appAcronym);
+    return app && isInGroup(app.App_permit_Doing);
   };
 
-  const canTransitionToDone = () => {
-    return application && isInGroup(application.App_permit_Doing);
+  const canTransitionToDone = (appAcronym) => {
+    const app = applications.find(a => a.App_Acronym === appAcronym);
+    return app && isInGroup(app.App_permit_Doing);
   };
 
-  const canTransitionToClosed = () => {
-    return application && isInGroup(application.App_permit_Done);
+  const canTransitionToClosed = (appAcronym) => {
+    const app = applications.find(a => a.App_Acronym === appAcronym);
+    return app && isInGroup(app.App_permit_Done);
   };
 
-  const canRejectToDoing = () => {
-    return application && isInGroup(application.App_permit_Done);
+  const canRejectToDoing = (appAcronym) => {
+    const app = applications.find(a => a.App_Acronym === appAcronym);
+    return app && isInGroup(app.App_permit_Done);
   };
+
+  // Filter tasks
+  const filteredTasks = selectedApp === "all"
+    ? allTasks
+    : allTasks.filter(task => task.Task_app_Acronym === selectedApp);
 
   // Group tasks by state
   const tasksByState = {
-    Open: tasks.filter((t) => t.Task_state === "Open"),
-    ToDo: tasks.filter((t) => t.Task_state === "ToDo"),
-    Doing: tasks.filter((t) => t.Task_state === "Doing"),
-    Done: tasks.filter((t) => t.Task_state === "Done"),
-    Closed: tasks.filter((t) => t.Task_state === "Closed"),
+    Open: filteredTasks.filter((t) => t.Task_state === "Open"),
+    ToDo: filteredTasks.filter((t) => t.Task_state === "ToDo"),
+    Doing: filteredTasks.filter((t) => t.Task_state === "Doing"),
+    Done: filteredTasks.filter((t) => t.Task_state === "Done"),
+    Closed: filteredTasks.filter((t) => t.Task_state === "Closed"),
   };
 
   // Get plan color
-  const getPlanColor = (planName) => {
-    const plan = plans.find((p) => p.Plan_MVP_name === planName);
+  const getPlanColor = (planName, appAcronym) => {
+    const plan = allPlans.find(
+      p => p.Plan_MVP_name === planName && p.app_acronym === appAcronym
+    );
     return plan?.Plan_color || "#cccccc";
+  };
+
+  // Get plans for specific app
+  const getPlansForApp = (appAcronym) => {
+    return allPlans.filter(p => p.app_acronym === appAcronym);
   };
 
   // Handle create task
@@ -149,6 +195,7 @@ const KanbanBoard = () => {
       Task_name: "",
       Task_description: "",
       Task_plan: "",
+      app_acronym: applications.length > 0 ? applications[0].App_Acronym : "",
     });
     setFormError(null);
     setCreateTaskDialog(true);
@@ -163,11 +210,20 @@ const KanbanBoard = () => {
         return;
       }
 
-      const response = await taskAPI.createTask(acronym, taskForm);
+      if (!taskForm.app_acronym) {
+        setFormError("Please select an application");
+        return;
+      }
+
+      const response = await taskAPI.createTask(taskForm.app_acronym, {
+        Task_name: taskForm.Task_name,
+        Task_description: taskForm.Task_description,
+        Task_plan: taskForm.Task_plan || null,
+      });
 
       if (response.success) {
         setCreateTaskDialog(false);
-        fetchData();
+        fetchAllData();
       }
     } catch (err) {
       setFormError(err.response?.data?.error || "Failed to create task");
@@ -194,14 +250,18 @@ const KanbanBoard = () => {
     try {
       setFormError(null);
 
-      const response = await taskAPI.updateTaskState(acronym, task.Task_id, {
-        new_state: newState,
-        note: noteText || undefined,
-      });
+      const response = await taskAPI.updateTaskState(
+        task.Task_app_Acronym,
+        task.Task_id,
+        {
+          new_state: newState,
+          note: noteText || undefined,
+        }
+      );
 
       if (response.success) {
         setNoteText("");
-        fetchData();
+        fetchAllData();
         if (taskDetailDialog) {
           handleCloseTaskDetail();
         }
@@ -221,15 +281,19 @@ const KanbanBoard = () => {
     try {
       setFormError(null);
 
-      const response = await taskAPI.updateTask(acronym, selectedTask.Task_id, {
-        note: noteText,
-      });
+      const response = await taskAPI.updateTask(
+        selectedTask.Task_app_Acronym,
+        selectedTask.Task_id,
+        {
+          note: noteText,
+        }
+      );
 
       if (response.success) {
         setNoteText("");
-        fetchData();
+        fetchAllData();
         // Refresh selected task
-        const updatedTasks = await taskAPI.getAllTasks(acronym);
+        const updatedTasks = await taskAPI.getAllTasks(selectedTask.Task_app_Acronym);
         const updatedTask = updatedTasks.tasks.find(
           (t) => t.Task_id === selectedTask.Task_id
         );
@@ -240,18 +304,34 @@ const KanbanBoard = () => {
     }
   };
 
-  // Handle create plan
-  const handleOpenCreatePlan = () => {
-    setPlanForm({
-      Plan_MVP_name: "",
-      Plan_startDate: "",
-      Plan_endDate: "",
-      Plan_color: "#3498db",
-    });
-    setFormError(null);
-    setCreatePlanDialog(true);
+  // Handle create application
+  const handleCreateApplication = async () => {
+    try {
+      setFormError(null);
+
+      if (!appForm.App_Acronym.trim()) {
+        setFormError("Application acronym is required");
+        return;
+      }
+
+      const response = await applicationAPI.createApplication(appForm);
+
+      if (response.success) {
+        setCreateAppDialog(false);
+        setAppForm({
+          App_Acronym: "",
+          App_Description: "",
+          App_startDate: "",
+          App_endDate: "",
+        });
+        fetchAllData();
+      }
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Failed to create application");
+    }
   };
 
+  // Handle create plan
   const handleCreatePlan = async () => {
     try {
       setFormError(null);
@@ -261,11 +341,28 @@ const KanbanBoard = () => {
         return;
       }
 
-      const response = await planAPI.createPlan(acronym, planForm);
+      if (!planForm.app_acronym) {
+        setFormError("Please select an application");
+        return;
+      }
+
+      const response = await planAPI.createPlan(planForm.app_acronym, {
+        Plan_MVP_name: planForm.Plan_MVP_name,
+        Plan_startDate: planForm.Plan_startDate || null,
+        Plan_endDate: planForm.Plan_endDate || null,
+        Plan_color: planForm.Plan_color,
+      });
 
       if (response.success) {
         setCreatePlanDialog(false);
-        fetchData();
+        setPlanForm({
+          Plan_MVP_name: "",
+          Plan_startDate: "",
+          Plan_endDate: "",
+          Plan_color: "#3498db",
+          app_acronym: "",
+        });
+        fetchAllData();
       }
     } catch (err) {
       setFormError(err.response?.data?.error || "Failed to create plan");
@@ -284,7 +381,7 @@ const KanbanBoard = () => {
           cursor: "pointer",
           "&:hover": { boxShadow: 4 },
           borderLeft: task.Task_plan
-            ? `4px solid ${getPlanColor(task.Task_plan)}`
+            ? `4px solid ${getPlanColor(task.Task_plan, task.Task_app_Acronym)}`
             : "none",
         }}
         onClick={() => handleOpenTaskDetail(task)}
@@ -294,18 +391,16 @@ const KanbanBoard = () => {
             <Typography variant="caption" color="text.secondary">
               {task.Task_id}
             </Typography>
-            {task.Task_plan && (
-              <Chip
-                label={task.Task_plan}
-                size="small"
-                sx={{
-                  backgroundColor: getPlanColor(task.Task_plan),
-                  color: "white",
-                  height: "20px",
-                  fontSize: "0.7rem",
-                }}
-              />
-            )}
+            <Chip
+              label={task.Task_app_Acronym}
+              size="small"
+              sx={{
+                backgroundColor: "#5f6368",
+                color: "white",
+                height: "20px",
+                fontSize: "0.7rem",
+              }}
+            />
           </Box>
 
           <Typography variant="body1" sx={{ fontWeight: "bold", mb: 1 }}>
@@ -327,8 +422,31 @@ const KanbanBoard = () => {
             {task.Task_description || "No description"}
           </Typography>
 
+          <Box sx={{ display: "flex", gap: 1, mb: 1, flexWrap: "wrap" }}>
+            {task.Task_plan && (
+              <Chip
+                label={task.Task_plan}
+                size="small"
+                sx={{
+                  backgroundColor: getPlanColor(task.Task_plan, task.Task_app_Acronym),
+                  color: "white",
+                  height: "20px",
+                  fontSize: "0.7rem",
+                }}
+              />
+            )}
+          </Box>
+
           <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-            <Chip label={task.Task_owner} size="small" variant="outlined" />
+            <Chip
+              label={task.Task_owner || "Unassigned"}
+              size="small"
+              variant="outlined"
+              sx={{
+                borderColor: task.Task_owner ? undefined : "#9e9e9e",
+                color: task.Task_owner ? undefined : "#9e9e9e"
+              }}
+            />
             <Typography variant="caption" color="text.secondary">
               {new Date(task.Task_createDate).toLocaleDateString()}
             </Typography>
@@ -345,11 +463,12 @@ const KanbanBoard = () => {
   // Render state transition buttons
   const renderStateTransitionButtons = (task, state) => {
     const buttonStyle = { fontSize: "0.7rem", py: 0.5, px: 1 };
+    const appAcronym = task.Task_app_Acronym;
 
     switch (state) {
       case "Open":
         return (
-          canTransitionToToDo() && (
+          canTransitionToToDo(appAcronym) && (
             <Button
               size="small"
               variant="contained"
@@ -368,7 +487,7 @@ const KanbanBoard = () => {
 
       case "ToDo":
         return (
-          canTransitionToDoing() && (
+          canTransitionToDoing(appAcronym) && (
             <Button
               size="small"
               variant="contained"
@@ -388,7 +507,7 @@ const KanbanBoard = () => {
       case "Doing":
         return (
           <Box sx={{ display: "flex", gap: 1 }}>
-            {canTransitionToDone() && (
+            {canTransitionToDone(appAcronym) && (
               <Button
                 size="small"
                 variant="contained"
@@ -403,7 +522,7 @@ const KanbanBoard = () => {
                 Done
               </Button>
             )}
-            {canTransitionToToDo() && (
+            {canTransitionToToDo(appAcronym) && (
               <Button
                 size="small"
                 variant="outlined"
@@ -424,7 +543,7 @@ const KanbanBoard = () => {
       case "Done":
         return (
           <Box sx={{ display: "flex", gap: 1 }}>
-            {canTransitionToClosed() && (
+            {canTransitionToClosed(appAcronym) && (
               <Button
                 size="small"
                 variant="contained"
@@ -439,7 +558,7 @@ const KanbanBoard = () => {
                 Approve
               </Button>
             )}
-            {canRejectToDoing() && (
+            {canRejectToDoing(appAcronym) && (
               <Button
                 size="small"
                 variant="outlined"
@@ -485,7 +604,14 @@ const KanbanBoard = () => {
           <Typography variant="h6" sx={{ fontWeight: "bold", color }}>
             {title}
           </Typography>
-          <Chip label={tasksByState[state].length} size="small" color="primary" />
+          <Chip
+            label={tasksByState[state].length}
+            size="small"
+            sx={{
+              backgroundColor: "#5f6368",
+              color: "white",
+            }}
+          />
         </Box>
 
         <Divider sx={{ mb: 2 }} />
@@ -494,6 +620,11 @@ const KanbanBoard = () => {
       </Paper>
     );
   };
+
+  // Check if user can create tasks for any application
+  const canCreateAnyTask = applications.some(app =>
+    isInGroup(app.App_permit_Open)
+  );
 
   if (loading) {
     return (
@@ -506,19 +637,12 @@ const KanbanBoard = () => {
     );
   }
 
-  if (error || !application) {
+  if (error) {
     return (
       <>
         <NavBar />
         <Container maxWidth="xl" sx={{ mt: 12, mb: 4 }}>
-          <Alert severity="error">{error || "Application not found"}</Alert>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate("/applications")}
-            sx={{ mt: 2 }}
-          >
-            Back to Applications
-          </Button>
+          <Alert severity="error">{error}</Alert>
         </Container>
       </>
     );
@@ -530,62 +654,118 @@ const KanbanBoard = () => {
       <Container maxWidth="xl" sx={{ mt: 12, mb: 4 }}>
         {/* Header */}
         <Box sx={{ mb: 3 }}>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-            <IconButton onClick={() => navigate("/applications")} sx={{ mr: 1 }}>
-              <ArrowBackIcon />
-            </IconButton>
-            <Typography variant="h4" component="h1">
-              {application.App_Acronym}
-            </Typography>
-          </Box>
-
-          <Typography variant="body2" color="text.secondary" sx={{ ml: 6, mb: 2 }}>
-            {application.App_Description || "No description"}
-          </Typography>
-
-          <Box sx={{ display: "flex", gap: 2, ml: 6 }}>
-            {canCreateTask() && (
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleOpenCreateTask}
-              >
-                Create Task
-              </Button>
-            )}
-            <Button
-              variant="outlined"
-              startIcon={<AddIcon />}
-              onClick={handleOpenCreatePlan}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{ fontWeight: 500, color: "#5f6368" }}
             >
-              Create Plan
-            </Button>
+              Applications
+            </Typography>
+
+            <Box sx={{ display: "flex", gap: 2 }}>
+              {isInGroup("pl") && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    setAppForm({
+                      App_Acronym: "",
+                      App_Description: "",
+                      App_startDate: "",
+                      App_endDate: "",
+                    });
+                    setFormError(null);
+                    setCreateAppDialog(true);
+                  }}
+                  sx={{
+                    backgroundColor: "#5f6368",
+                    textTransform: "none",
+                    borderRadius: "20px",
+                    px: 3,
+                    "&:hover": {
+                      backgroundColor: "#4a4d50",
+                    },
+                  }}
+                >
+                  Add Application
+                </Button>
+              )}
+
+              {(isInGroup("pl") || isInGroup("pm")) && applications.length > 0 && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    setPlanForm({
+                      Plan_MVP_name: "",
+                      Plan_startDate: "",
+                      Plan_endDate: "",
+                      Plan_color: "#3498db",
+                      app_acronym: applications.length > 0 ? applications[0].App_Acronym : "",
+                    });
+                    setFormError(null);
+                    setCreatePlanDialog(true);
+                  }}
+                  sx={{
+                    backgroundColor: "#5f6368",
+                    textTransform: "none",
+                    borderRadius: "20px",
+                    px: 3,
+                    "&:hover": {
+                      backgroundColor: "#4a4d50",
+                    },
+                  }}
+                >
+                  Add Plan
+                </Button>
+              )}
+
+              {canCreateAnyTask && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={handleOpenCreateTask}
+                  sx={{
+                    backgroundColor: "#5f6368",
+                    textTransform: "none",
+                    borderRadius: "20px",
+                    px: 3,
+                    "&:hover": {
+                      backgroundColor: "#4a4d50",
+                    },
+                  }}
+                >
+                  Create Task
+                </Button>
+              )}
+            </Box>
           </Box>
 
-          {/* Plans Display */}
-          {plans.length > 0 && (
-            <Box sx={{ mt: 2, ml: 6 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Plans:
-              </Typography>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                {plans.map((plan) => (
-                  <Chip
-                    key={plan.Plan_MVP_name}
-                    label={`${plan.Plan_MVP_name} (${new Date(
-                      plan.Plan_startDate
-                    ).toLocaleDateString()} - ${new Date(
-                      plan.Plan_endDate
-                    ).toLocaleDateString()})`}
-                    sx={{
-                      backgroundColor: plan.Plan_color,
-                      color: "white",
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
+          {/* Application Filter */}
+          <FormControl sx={{ minWidth: 200 }}>
+            <InputLabel>Filter by Application</InputLabel>
+            <Select
+              value={selectedApp}
+              label="Filter by Application"
+              onChange={(e) => setSelectedApp(e.target.value)}
+              size="small"
+            >
+              <MenuItem value="all">All Applications</MenuItem>
+              {applications.map((app) => (
+                <MenuItem key={app.App_Acronym} value={app.App_Acronym}>
+                  {app.App_Acronym}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Box>
 
         {/* Kanban Board */}
@@ -604,6 +784,225 @@ const KanbanBoard = () => {
           {renderColumn("Closed", "Closed", "#607d8b")}
         </Box>
 
+        {/* Create Application Dialog */}
+        <Dialog
+          open={createAppDialog}
+          onClose={() => setCreateAppDialog(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+            },
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>Create New Application</DialogTitle>
+          <DialogContent>
+            {formError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {formError}
+              </Alert>
+            )}
+
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Application Acronym"
+              fullWidth
+              required
+              value={appForm.App_Acronym}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_Acronym: e.target.value })
+              }
+              helperText="Short identifier for the application (e.g., DEMO, PROJ1)"
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="Description"
+              fullWidth
+              multiline
+              rows={3}
+              value={appForm.App_Description}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_Description: e.target.value })
+              }
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="Start Date"
+              type="date"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={appForm.App_startDate}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_startDate: e.target.value })
+              }
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="End Date"
+              type="date"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={appForm.App_endDate}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_endDate: e.target.value })
+              }
+              sx={{ mb: 1 }}
+            />
+
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mt: 2, display: "block" }}
+            >
+              Note: User group permissions can be configured after creation
+            </Typography>
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => setCreateAppDialog(false)}
+              sx={{ textTransform: "none", color: "#5f6368" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateApplication}
+              variant="contained"
+              sx={{
+                textTransform: "none",
+                backgroundColor: "#5f6368",
+                "&:hover": {
+                  backgroundColor: "#4a4d50",
+                },
+              }}
+            >
+              Create
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Create Plan Dialog */}
+        <Dialog
+          open={createPlanDialog}
+          onClose={() => setCreatePlanDialog(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+            },
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>Create New Plan</DialogTitle>
+          <DialogContent>
+            {formError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {formError}
+              </Alert>
+            )}
+
+            <FormControl fullWidth margin="dense" required sx={{ mb: 2 }}>
+              <InputLabel>Application</InputLabel>
+              <Select
+                value={planForm.app_acronym}
+                label="Application"
+                onChange={(e) =>
+                  setPlanForm({ ...planForm, app_acronym: e.target.value })
+                }
+              >
+                {applications.map((app) => (
+                  <MenuItem key={app.App_Acronym} value={app.App_Acronym}>
+                    {app.App_Acronym}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Plan Name (MVP)"
+              fullWidth
+              required
+              value={planForm.Plan_MVP_name}
+              onChange={(e) =>
+                setPlanForm({ ...planForm, Plan_MVP_name: e.target.value })
+              }
+              helperText="Name of the plan or MVP"
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="Start Date"
+              type="date"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={planForm.Plan_startDate}
+              onChange={(e) =>
+                setPlanForm({ ...planForm, Plan_startDate: e.target.value })
+              }
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="End Date"
+              type="date"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={planForm.Plan_endDate}
+              onChange={(e) =>
+                setPlanForm({ ...planForm, Plan_endDate: e.target.value })
+              }
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="Color"
+              type="color"
+              fullWidth
+              value={planForm.Plan_color}
+              onChange={(e) =>
+                setPlanForm({ ...planForm, Plan_color: e.target.value })
+              }
+              helperText="Color for visual distinction on task cards"
+              sx={{ mb: 1 }}
+            />
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => setCreatePlanDialog(false)}
+              sx={{ textTransform: "none", color: "#5f6368" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreatePlan}
+              variant="contained"
+              sx={{
+                textTransform: "none",
+                backgroundColor: "#5f6368",
+                "&:hover": {
+                  backgroundColor: "#4a4d50",
+                },
+              }}
+            >
+              Create
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         {/* Create Task Dialog */}
         <Dialog
           open={createTaskDialog}
@@ -619,8 +1018,30 @@ const KanbanBoard = () => {
               </Alert>
             )}
 
+            <FormControl fullWidth margin="dense" required>
+              <InputLabel>Application</InputLabel>
+              <Select
+                value={taskForm.app_acronym}
+                label="Application"
+                onChange={(e) => {
+                  setTaskForm({
+                    ...taskForm,
+                    app_acronym: e.target.value,
+                    Task_plan: "" // Reset plan when app changes
+                  });
+                }}
+              >
+                {applications
+                  .filter(app => canCreateTaskForApp(app.App_Acronym))
+                  .map((app) => (
+                    <MenuItem key={app.App_Acronym} value={app.App_Acronym}>
+                      {app.App_Acronym}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+
             <TextField
-              autoFocus
               margin="dense"
               label="Task Name"
               fullWidth
@@ -653,9 +1074,10 @@ const KanbanBoard = () => {
                 setTaskForm({ ...taskForm, Task_plan: e.target.value })
               }
               helperText="Optional: Assign task to a plan"
+              disabled={!taskForm.app_acronym}
             >
               <MenuItem value="">None</MenuItem>
-              {plans.map((plan) => (
+              {taskForm.app_acronym && getPlansForApp(taskForm.app_acronym).map((plan) => (
                 <MenuItem key={plan.Plan_MVP_name} value={plan.Plan_MVP_name}>
                   {plan.Plan_MVP_name}
                 </MenuItem>
@@ -680,9 +1102,21 @@ const KanbanBoard = () => {
           {selectedTask && (
             <>
               <DialogTitle>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
                   <Typography variant="h6">{selectedTask.Task_id}</Typography>
-                  <Chip label={selectedTask.Task_state} color="primary" />
+                  <Box sx={{ display: "flex", gap: 1 }}>
+                    <Chip
+                      label={selectedTask.Task_app_Acronym}
+                      sx={{ backgroundColor: "#5f6368", color: "white" }}
+                    />
+                    <Chip label={selectedTask.Task_state} color="primary" />
+                  </Box>
                 </Box>
               </DialogTitle>
               <DialogContent>
@@ -700,14 +1134,24 @@ const KanbanBoard = () => {
                   {selectedTask.Task_description || "No description"}
                 </Typography>
 
-                <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                  <Chip label={`Owner: ${selectedTask.Task_owner}`} />
+                <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
+                  <Chip
+                    label={`Owner: ${selectedTask.Task_owner || "Unassigned"}`}
+                    sx={{
+                      borderColor: selectedTask.Task_owner ? undefined : "#9e9e9e",
+                      color: selectedTask.Task_owner ? undefined : "#9e9e9e"
+                    }}
+                    variant={selectedTask.Task_owner ? "filled" : "outlined"}
+                  />
                   <Chip label={`Creator: ${selectedTask.Task_creator}`} />
                   {selectedTask.Task_plan && (
                     <Chip
                       label={`Plan: ${selectedTask.Task_plan}`}
                       sx={{
-                        backgroundColor: getPlanColor(selectedTask.Task_plan),
+                        backgroundColor: getPlanColor(
+                          selectedTask.Task_plan,
+                          selectedTask.Task_app_Acronym
+                        ),
                         color: "white",
                       }}
                     />
@@ -742,10 +1186,12 @@ const KanbanBoard = () => {
                 </Button>
 
                 <Box sx={{ maxHeight: "300px", overflowY: "auto" }}>
-                  {selectedTask.Task_notes &&
-                  selectedTask.Task_notes.length > 0 ? (
+                  {selectedTask.Task_notes && selectedTask.Task_notes.length > 0 ? (
                     selectedTask.Task_notes.map((note, index) => (
-                      <Paper key={index} sx={{ p: 2, mb: 1, backgroundColor: "#f5f5f5" }}>
+                      <Paper
+                        key={index}
+                        sx={{ p: 2, mb: 1, backgroundColor: "#f5f5f5" }}
+                      >
                         <Box
                           sx={{
                             display: "flex",
@@ -780,77 +1226,6 @@ const KanbanBoard = () => {
               </DialogActions>
             </>
           )}
-        </Dialog>
-
-        {/* Create Plan Dialog */}
-        <Dialog
-          open={createPlanDialog}
-          onClose={() => setCreatePlanDialog(false)}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Create New Plan</DialogTitle>
-          <DialogContent>
-            {formError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {formError}
-              </Alert>
-            )}
-
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Plan Name"
-              fullWidth
-              required
-              value={planForm.Plan_MVP_name}
-              onChange={(e) =>
-                setPlanForm({ ...planForm, Plan_MVP_name: e.target.value })
-              }
-            />
-
-            <TextField
-              margin="dense"
-              label="Start Date"
-              type="date"
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              value={planForm.Plan_startDate}
-              onChange={(e) =>
-                setPlanForm({ ...planForm, Plan_startDate: e.target.value })
-              }
-            />
-
-            <TextField
-              margin="dense"
-              label="End Date"
-              type="date"
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              value={planForm.Plan_endDate}
-              onChange={(e) =>
-                setPlanForm({ ...planForm, Plan_endDate: e.target.value })
-              }
-            />
-
-            <TextField
-              margin="dense"
-              label="Color"
-              type="color"
-              fullWidth
-              value={planForm.Plan_color}
-              onChange={(e) =>
-                setPlanForm({ ...planForm, Plan_color: e.target.value })
-              }
-              helperText="Choose a color for visual distinction"
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setCreatePlanDialog(false)}>Cancel</Button>
-            <Button onClick={handleCreatePlan} variant="contained">
-              Create
-            </Button>
-          </DialogActions>
         </Dialog>
       </Container>
     </>

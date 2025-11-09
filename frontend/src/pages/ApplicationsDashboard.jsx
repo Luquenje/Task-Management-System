@@ -1,31 +1,39 @@
 import { useState, useEffect } from "react";
 import {
   Container,
-  Grid,
-  Card,
-  CardContent,
-  CardActions,
+  Box,
   Typography,
   Button,
-  Box,
-  Chip,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
   Alert,
+  IconButton,
+  Stack,
 } from "@mui/material";
-import { Add as AddIcon, Visibility as ViewIcon } from "@mui/icons-material";
+import {
+  FilterList as FilterIcon,
+} from "@mui/icons-material";
 import NavBar from "../components/NavBar";
 import { useAuth } from "../contexts/AuthContext";
-import { applicationAPI } from "../apis/api";
+import { applicationAPI, planAPI, taskAPI } from "../apis/api";
 import { useNavigate } from "react-router-dom";
 
 const ApplicationsDashboard = () => {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
+  const [plansData, setPlansData] = useState({});
+  const [tasksData, setTasksData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
@@ -47,12 +55,46 @@ const ApplicationsDashboard = () => {
       const response = await applicationAPI.getAllApplications();
       if (response.success) {
         setApplications(response.applications);
+
+        // Fetch plans and tasks for each application
+        for (const app of response.applications) {
+          await fetchPlansAndTasks(app.App_Acronym);
+        }
       }
     } catch (err) {
       setError(err.response?.data?.error || "Failed to fetch applications");
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchPlansAndTasks = async (acronym) => {
+    try {
+      // Fetch plans
+      const plansRes = await planAPI.getAllPlans(acronym);
+      if (plansRes.success) {
+        setPlansData(prev => ({
+          ...prev,
+          [acronym]: plansRes.plans
+        }));
+      }
+
+      // Fetch tasks
+      const tasksRes = await taskAPI.getAllTasks(acronym);
+      if (tasksRes.success) {
+        setTasksData(prev => ({
+          ...prev,
+          [acronym]: tasksRes.tasks
+        }));
+      }
+    } catch (err) {
+      console.error(`Error fetching data for ${acronym}:`, err);
+    }
+  };
+
+  const getTaskCountForPlan = (acronym, planName) => {
+    const tasks = tasksData[acronym] || [];
+    return tasks.filter(task => task.Task_plan === planName).length;
   };
 
   const handleOpenDialog = () => {
@@ -105,21 +147,24 @@ const ApplicationsDashboard = () => {
     }
   };
 
-  const handleViewApplication = (acronym) => {
-    // Navigate to kanban board view
+  const handleViewAllTasks = (acronym) => {
     navigate(`/applications/${acronym}/kanban`);
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString();
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   };
 
   if (loading) {
     return (
       <>
         <NavBar />
-        <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+        <Container maxWidth="lg" sx={{ mt: 12, mb: 4 }}>
           <Typography>Loading applications...</Typography>
         </Container>
       </>
@@ -129,26 +174,38 @@ const ApplicationsDashboard = () => {
   return (
     <>
       <NavBar />
-      <Container maxWidth="xl" sx={{ mt: 12, mb: 4 }}>
+      <Container maxWidth="lg" sx={{ mt: 12, mb: 4 }}>
         {/* Header */}
         <Box
           sx={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            mb: 3,
+            mb: 4,
           }}
         >
-          <Typography variant="h4" component="h1">
+          <Typography
+            variant="h5"
+            component="h1"
+            sx={{ fontWeight: 500, color: "#5f6368" }}
+          >
             Applications
           </Typography>
           {isAdmin && (
             <Button
               variant="contained"
-              startIcon={<AddIcon />}
               onClick={handleOpenDialog}
+              sx={{
+                backgroundColor: "#5f6368",
+                textTransform: "none",
+                borderRadius: "20px",
+                px: 3,
+                "&:hover": {
+                  backgroundColor: "#4a4d50",
+                },
+              }}
             >
-              Create Application
+              Add Application
             </Button>
           )}
         </Box>
@@ -159,7 +216,7 @@ const ApplicationsDashboard = () => {
           </Alert>
         )}
 
-        {/* Applications Grid */}
+        {/* Applications List */}
         {applications.length === 0 ? (
           <Box sx={{ textAlign: "center", mt: 8 }}>
             <Typography variant="h6" color="text.secondary">
@@ -167,57 +224,40 @@ const ApplicationsDashboard = () => {
             </Typography>
             {isAdmin && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Click "Create Application" to get started
+                Click "Add Application" to get started
               </Typography>
             )}
           </Box>
         ) : (
-          <Grid container spacing={3}>
+          <Stack spacing={3}>
             {applications.map((app) => (
-              <Grid item xs={12} sm={6} md={4} key={app.App_Acronym}>
-                <Card
-                  sx={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    "&:hover": {
-                      boxShadow: 6,
-                    },
-                  }}
-                >
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        mb: 2,
-                      }}
-                    >
-                      <Typography
-                        variant="h5"
-                        component="div"
-                        sx={{ fontWeight: "bold" }}
-                      >
-                        {app.App_Acronym}
-                      </Typography>
-                      <Chip
-                        label={`#${app.App_Rnumber}`}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      />
-                    </Box>
-
+              <Paper
+                key={app.App_Acronym}
+                elevation={0}
+                sx={{
+                  p: 4,
+                  borderRadius: 3,
+                  backgroundColor: "#f8f9fa",
+                  border: "1px solid #e0e0e0",
+                }}
+              >
+                {/* Application Header */}
+                <Box sx={{ mb: 3 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      mb: 1,
+                    }}
+                  >
                     <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mb: 2, minHeight: "40px" }}
+                      variant="h6"
+                      sx={{ fontWeight: 600, color: "#202124" }}
                     >
-                      {app.App_Description || "No description provided"}
+                      {app.App_Acronym}
                     </Typography>
-
-                    <Box sx={{ mt: 2 }}>
+                    <Box sx={{ textAlign: "right" }}>
                       <Typography variant="caption" color="text.secondary">
                         Start Date: {formatDate(app.App_startDate)}
                       </Typography>
@@ -226,21 +266,133 @@ const ApplicationsDashboard = () => {
                         End Date: {formatDate(app.App_endDate)}
                       </Typography>
                     </Box>
-                  </CardContent>
+                  </Box>
 
-                  <CardActions>
-                    <Button
-                      size="small"
-                      startIcon={<ViewIcon />}
-                      onClick={() => handleViewApplication(app.App_Acronym)}
-                    >
-                      View Tasks
-                    </Button>
-                  </CardActions>
-                </Card>
-              </Grid>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontStyle: "italic" }}
+                  >
+                    {app.App_Description ||
+                      "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."}
+                  </Typography>
+                </Box>
+
+                {/* Plans Table */}
+                <TableContainer
+                  component={Paper}
+                  elevation={0}
+                  sx={{
+                    backgroundColor: "white",
+                    mb: 2,
+                    borderRadius: 2,
+                  }}
+                >
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell
+                          sx={{ fontWeight: 600, color: "#5f6368", py: 1.5 }}
+                        >
+                          MVP Name
+                        </TableCell>
+                        <TableCell
+                          sx={{ fontWeight: 600, color: "#5f6368", py: 1.5 }}
+                        >
+                          Start Date
+                        </TableCell>
+                        <TableCell
+                          sx={{ fontWeight: 600, color: "#5f6368", py: 1.5 }}
+                        >
+                          End Date
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{ fontWeight: 600, color: "#5f6368", py: 1.5 }}
+                        >
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "flex-end",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            Total No. of tasks
+                            <IconButton size="small">
+                              <FilterIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {plansData[app.App_Acronym] &&
+                      plansData[app.App_Acronym].length > 0 ? (
+                        plansData[app.App_Acronym].map((plan, index) => (
+                          <TableRow
+                            key={plan.Plan_MVP_name}
+                            sx={{
+                              backgroundColor:
+                                index % 2 === 0 ? "#fafafa" : "white",
+                              "&:hover": {
+                                backgroundColor: "#f5f5f5",
+                              },
+                            }}
+                          >
+                            <TableCell sx={{ py: 2 }}>
+                              {plan.Plan_MVP_name}
+                            </TableCell>
+                            <TableCell sx={{ py: 2 }}>
+                              {formatDate(plan.Plan_startDate)}
+                            </TableCell>
+                            <TableCell sx={{ py: 2 }}>
+                              {formatDate(plan.Plan_endDate)}
+                            </TableCell>
+                            <TableCell align="right" sx={{ py: 2 }}>
+                              {getTaskCountForPlan(
+                                app.App_Acronym,
+                                plan.Plan_MVP_name
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={4}
+                            align="center"
+                            sx={{ py: 3, color: "text.secondary" }}
+                          >
+                            No plans created yet
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+
+                {/* View All Tasks Button */}
+                <Box>
+                  <Button
+                    variant="contained"
+                    onClick={() => handleViewAllTasks(app.App_Acronym)}
+                    sx={{
+                      backgroundColor: "#5f6368",
+                      textTransform: "none",
+                      borderRadius: "20px",
+                      px: 3,
+                      "&:hover": {
+                        backgroundColor: "#4a4d50",
+                      },
+                    }}
+                  >
+                    View all Tasks
+                  </Button>
+                </Box>
+              </Paper>
             ))}
-          </Grid>
+          </Stack>
         )}
 
         {/* Create Application Dialog */}
@@ -249,8 +401,13 @@ const ApplicationsDashboard = () => {
           onClose={handleCloseDialog}
           maxWidth="sm"
           fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+            },
+          }}
         >
-          <DialogTitle>Create New Application</DialogTitle>
+          <DialogTitle sx={{ pb: 1 }}>Create New Application</DialogTitle>
           <DialogContent>
             {formError && (
               <Alert severity="error" sx={{ mb: 2 }}>
@@ -268,6 +425,7 @@ const ApplicationsDashboard = () => {
               value={formData.App_Acronym}
               onChange={handleInputChange}
               helperText="Short identifier for the application (e.g., DEMO, PROJ1)"
+              sx={{ mb: 2 }}
             />
 
             <TextField
@@ -279,6 +437,7 @@ const ApplicationsDashboard = () => {
               rows={3}
               value={formData.App_Description}
               onChange={handleInputChange}
+              sx={{ mb: 2 }}
             />
 
             <TextField
@@ -290,6 +449,7 @@ const ApplicationsDashboard = () => {
               InputLabelProps={{ shrink: true }}
               value={formData.App_startDate}
               onChange={handleInputChange}
+              sx={{ mb: 2 }}
             />
 
             <TextField
@@ -301,16 +461,36 @@ const ApplicationsDashboard = () => {
               InputLabelProps={{ shrink: true }}
               value={formData.App_endDate}
               onChange={handleInputChange}
+              sx={{ mb: 1 }}
             />
 
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mt: 2, display: "block" }}
+            >
               Note: User group permissions can be configured after creation
             </Typography>
           </DialogContent>
 
-          <DialogActions>
-            <Button onClick={handleCloseDialog}>Cancel</Button>
-            <Button onClick={handleCreateApplication} variant="contained">
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={handleCloseDialog}
+              sx={{ textTransform: "none", color: "#5f6368" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateApplication}
+              variant="contained"
+              sx={{
+                textTransform: "none",
+                backgroundColor: "#5f6368",
+                "&:hover": {
+                  backgroundColor: "#4a4d50",
+                },
+              }}
+            >
               Create
             </Button>
           </DialogActions>

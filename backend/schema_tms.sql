@@ -1,7 +1,7 @@
 -- Task Management System Database Schema
 -- Run this script to create the Application, Plan, and Task tables
 
-USE `nodelogin`;
+USE `task_management`;
 
 -- ============================================
 -- Application Table
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS `task` (
   `Task_app_Acronym` VARCHAR(50) NOT NULL,
   `Task_state` ENUM('Open', 'ToDo', 'Doing', 'Done', 'Closed') NOT NULL DEFAULT 'Open',
   `Task_creator` VARCHAR(50) NOT NULL,
-  `Task_owner` VARCHAR(50) NOT NULL,
+  `Task_owner` VARCHAR(50),                 -- NULL until task is picked up (transitions to Doing)
   `Task_createDate` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`Task_id`),
   FOREIGN KEY (`Task_app_Acronym`) REFERENCES `application`(`App_Acronym`) ON DELETE CASCADE
@@ -55,11 +55,16 @@ CREATE TABLE IF NOT EXISTS `task` (
 -- ============================================
 
 -- Sample Application
+-- Permissions:
+--   App_permit_Open: 'pl' - Project Lead can create tasks
+--   App_permit_toDoList: 'pm' - Project Manager can release tasks to ToDo
+--   App_permit_Doing: 'dev' - Developers can pick up and work on tasks
+--   App_permit_Done: 'pl' - Project Lead can approve/reject completed tasks
 INSERT INTO `application` (`App_Acronym`, `App_Description`, `App_Rnumber`, `App_startDate`, `App_endDate`,
   `App_permit_Open`, `App_permit_toDoList`, `App_permit_Doing`, `App_permit_Done`)
 VALUES
   ('DEMO', 'Demo Project for Task Management System', 0, '2025-01-01', '2025-12-31',
-   'admin', 'admin', 'developer', 'admin')
+   'pl', 'pm', 'dev', 'pl')
 ON DUPLICATE KEY UPDATE `App_Acronym` = `App_Acronym`;
 
 -- Sample Plans
