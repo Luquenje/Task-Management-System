@@ -768,14 +768,15 @@ app.get("/api/applications/:acronym", authenticateJWT, (req, res) => {
 });
 
 // Create new application (Admin only)
-app.post("/api/applications", authenticateJWT, requireAdmin, (req, res) => {
+app.post("/api/applications", authenticateJWT, (req, res) => {
   const {
     App_Acronym,
     App_Description,
     App_startDate,
     App_endDate,
+    App_permit_Create,
     App_permit_Open,
-    App_permit_toDoList,
+    App_permit_ToDo,
     App_permit_Doing,
     App_permit_Done,
   } = req.body;
@@ -790,8 +791,8 @@ app.post("/api/applications", authenticateJWT, requireAdmin, (req, res) => {
 
   const insertQuery = `INSERT INTO application
     (App_Acronym, App_Description, App_Rnumber, App_startDate, App_endDate,
-     App_permit_Open, App_permit_toDoList, App_permit_Doing, App_permit_Done)
-    VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?)`;
+     App_permit_Create, App_permit_Open, App_permit_ToDo, App_permit_Doing, App_permit_Done)
+    VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`;
 
   connection.query(
     insertQuery,
@@ -800,8 +801,9 @@ app.post("/api/applications", authenticateJWT, requireAdmin, (req, res) => {
       App_Description || null,
       App_startDate || null,
       App_endDate || null,
+      App_permit_Create || null,
       App_permit_Open || null,
-      App_permit_toDoList || null,
+      App_permit_ToDo || null,
       App_permit_Doing || null,
       App_permit_Done || null,
     ],
@@ -1171,7 +1173,7 @@ app.get("/api/applications/:acronym/tasks", authenticateJWT, (req, res) => {
   });
 });
 
-// Create new task (Open state) - requires App_permit_Open permission
+// Create new task (Open state) - requires App_permit_Create permission
 app.post("/api/applications/:acronym/tasks", authenticateJWT, (req, res) => {
   const { acronym } = req.params;
   const { Task_name, Task_description, Task_plan } = req.body;
@@ -1205,9 +1207,9 @@ app.post("/api/applications/:acronym/tasks", authenticateJWT, (req, res) => {
     }
 
     const app = appResults[0];
-    const requiredGroup = app.App_permit_Open;
+    const requiredGroup = app.App_permit_Create;
 
-    // Check if user has permission to create tasks (Open state)
+    // Check if user has permission to create tasks
     if (!requiredGroup) {
       return res.status(403).json({
         success: false,
@@ -1394,21 +1396,32 @@ app.patch(
         });
       }
 
-      // Check permissions based on new state
+      // Check permissions based on state transition
       let requiredGroup = null;
-      switch (new_state) {
-        case "ToDo":
-          requiredGroup = task.App_permit_toDoList;
-          break;
-        case "Doing":
-          requiredGroup = task.App_permit_Doing;
-          break;
-        case "Done":
-          requiredGroup = task.App_permit_Doing;
-          break;
-        case "Closed":
-          requiredGroup = task.App_permit_Done;
-          break;
+
+      // Open → ToDo: requires App_permit_Open (release)
+      if (currentState === "Open" && new_state === "ToDo") {
+        requiredGroup = task.App_permit_Open;
+      }
+      // ToDo → Doing: requires App_permit_ToDo (pickup)
+      else if (currentState === "ToDo" && new_state === "Doing") {
+        requiredGroup = task.App_permit_ToDo;
+      }
+      // Doing → Done: requires App_permit_Doing (push to Done)
+      else if (currentState === "Doing" && new_state === "Done") {
+        requiredGroup = task.App_permit_Doing;
+      }
+      // Doing → ToDo: requires App_permit_Doing (drop back)
+      else if (currentState === "Doing" && new_state === "ToDo") {
+        requiredGroup = task.App_permit_Doing;
+      }
+      // Done → Closed: requires App_permit_Done (approve)
+      else if (currentState === "Done" && new_state === "Closed") {
+        requiredGroup = task.App_permit_Done;
+      }
+      // Done → Doing: requires App_permit_Done (reject)
+      else if (currentState === "Done" && new_state === "Doing") {
+        requiredGroup = task.App_permit_Done;
       }
 
       if (!requiredGroup) {
@@ -1449,42 +1462,38 @@ app.patch(
           updateParams = [new_state, taskId];
         }
 
-        connection.query(
-          updateQuery,
-          updateParams,
-          (err, result) => {
-            if (err) {
-              console.error("Error updating task state:", err);
-              return res.status(500).json({
-                success: false,
-                error: "Failed to update task state",
-              });
-            }
-
-            // Add audit trail note
-            const noteText =
-              note || `Task transitioned from ${currentState} to ${new_state}`;
-            addTaskNote(taskId, username, new_state, noteText, (err) => {
-              if (err) {
-                console.error("Error adding task note:", err);
-                // Don't fail the request if note fails
-              }
-
-              // TODO: Send email notification if transitioning to Done state
-              // This would require email configuration
-
-              res.json({
-                success: true,
-                message: "Task state updated successfully",
-                task: {
-                  Task_id: taskId,
-                  Task_state: new_state,
-                  Task_owner: new_state === "Doing" ? username : task.Task_owner,
-                },
-              });
+        connection.query(updateQuery, updateParams, (err, result) => {
+          if (err) {
+            console.error("Error updating task state:", err);
+            return res.status(500).json({
+              success: false,
+              error: "Failed to update task state",
             });
           }
-        );
+
+          // Add audit trail note
+          const noteText =
+            note || `Task transitioned from ${currentState} to ${new_state}`;
+          addTaskNote(taskId, username, new_state, noteText, (err) => {
+            if (err) {
+              console.error("Error adding task note:", err);
+              // Don't fail the request if note fails
+            }
+
+            // TODO: Send email notification if transitioning to Done state
+            // This would require email configuration
+
+            res.json({
+              success: true,
+              message: "Task state updated successfully",
+              task: {
+                Task_id: taskId,
+                Task_state: new_state,
+                Task_owner: new_state === "Doing" ? username : task.Task_owner,
+              },
+            });
+          });
+        });
       });
     });
   }
@@ -1520,8 +1529,8 @@ app.patch(
     }
 
     // Always update owner to current user (last touch)
-    updateFields.push("Task_owner = ?");
-    updateValues.push(username);
+    // updateFields.push("Task_owner = ?");
+    // updateValues.push(username);
 
     updateValues.push(taskId, acronym);
 
@@ -1542,38 +1551,51 @@ app.patch(
       }
 
       const currentState = results[0].Task_state;
-
-      connection.query(updateQuery, updateValues, (err, result) => {
-        if (err) {
-          console.error("Error updating task:", err);
-          return res.status(500).json({
-            success: false,
-            error: "Failed to update task",
-            message: err.message,
-          });
-        }
-
-        if (result.affectedRows === 0) {
-          return res.status(404).json({
-            success: false,
-            error: "Task not found",
-          });
-        }
-
-        // Add note if provided
-        if (note) {
-          addTaskNote(taskId, username, currentState, note, (err) => {
-            if (err) {
-              console.error("Error adding task note:", err);
-            }
-          });
-        }
-
-        res.json({
-          success: true,
-          message: "Task updated successfully",
+      // Add note if provided
+      if (note) {
+        addTaskNote(taskId, username, currentState, note, (err) => {
+          if (err) {
+            console.error("Error adding task note:", err);
+          }
         });
-      });
+      }
+      if (updateFields.length !== 0) {
+        connection.query(updateQuery, updateValues, (err, result) => {
+          if (err) {
+            console.error("Error updating task:", err);
+            return res.status(500).json({
+              success: false,
+              error: "Failed to update task",
+              message: err.message,
+            });
+          }
+
+          if (result.affectedRows === 0) {
+            return res.status(404).json({
+              success: false,
+              error: "Task not found",
+            });
+          }
+
+          // // Add note if provided
+          // if (note) {
+          //   addTaskNote(taskId, username, currentState, note, (err) => {
+          //     if (err) {
+          //       console.error("Error adding task note:", err);
+          //     }
+          //   });
+          // }
+
+          res.json({
+            success: true,
+            message: "Task updated successfully",
+          });
+        });
+      }
+    });
+    res.json({
+      success: true,
+      message: "Task updated successfully",
     });
   }
 );
@@ -1581,7 +1603,7 @@ app.patch(
 // ============= USER GROUPS API (Admin Only) =============
 
 // Get all user groups
-app.get("/api/user-groups", authenticateJWT, requireAdmin, (req, res) => {
+app.get("/api/user-groups", authenticateJWT, (req, res) => {
   const query = "SELECT group_name FROM user_groups ORDER BY group_name";
 
   connection.query(query, (err, results) => {

@@ -42,6 +42,7 @@ const KanbanBoard = () => {
   const [applications, setApplications] = useState([]);
   const [allPlans, setAllPlans] = useState([]);
   const [allTasks, setAllTasks] = useState([]);
+  const [userGroups, setUserGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -67,6 +68,12 @@ const KanbanBoard = () => {
     App_Description: "",
     App_startDate: "",
     App_endDate: "",
+    // default premissions
+    App_permit_Create: "pl", // create task
+    App_permit_Open: "pm", // release task open -> todo
+    App_permit_ToDo: "dev", // pickup task todo -> doing
+    App_permit_Doing: "dev", // push to done doing -> done | drop task doing -> todo
+    App_permit_Done: "pl", // reject task done -> doing | approve task done -> close
   });
   const [planForm, setPlanForm] = useState({
     Plan_MVP_name: "",
@@ -80,7 +87,19 @@ const KanbanBoard = () => {
 
   useEffect(() => {
     fetchAllData();
+    fetchUserGroups();
   }, []);
+
+  const fetchUserGroups = async () => {
+    try {
+      const response = await userGroupAPI.getAllGroups();
+      if (response.success) {
+        setUserGroups(response.groups);
+      }
+    } catch (err) {
+      console.error("Error fetching user groups:", err);
+    }
+  };
 
   const fetchAllData = async () => {
     try {
@@ -101,9 +120,9 @@ const KanbanBoard = () => {
           const plansRes = await planAPI.getAllPlans(app.App_Acronym);
           if (plansRes.success) {
             // Add app acronym to each plan for reference
-            const plansWithApp = plansRes.plans.map(plan => ({
+            const plansWithApp = plansRes.plans.map((plan) => ({
               ...plan,
-              app_acronym: app.App_Acronym
+              app_acronym: app.App_Acronym,
             }));
             allPlansData.push(...plansWithApp);
           }
@@ -133,39 +152,45 @@ const KanbanBoard = () => {
 
   // Check permissions for specific application
   const canCreateTaskForApp = (appAcronym) => {
-    const app = applications.find(a => a.App_Acronym === appAcronym);
-    return app && isInGroup(app.App_permit_Open);
+    const app = applications.find((a) => a.App_Acronym === appAcronym);
+    return app && isInGroup(app.App_permit_Create);
   };
 
   const canTransitionToToDo = (appAcronym) => {
-    const app = applications.find(a => a.App_Acronym === appAcronym);
-    return app && isInGroup(app.App_permit_toDoList);
+    const app = applications.find((a) => a.App_Acronym === appAcronym);
+    return app && isInGroup(app.App_permit_Open);
   };
 
   const canTransitionToDoing = (appAcronym) => {
-    const app = applications.find(a => a.App_Acronym === appAcronym);
-    return app && isInGroup(app.App_permit_Doing);
+    const app = applications.find((a) => a.App_Acronym === appAcronym);
+    return app && isInGroup(app.App_permit_ToDo);
   };
 
   const canTransitionToDone = (appAcronym) => {
-    const app = applications.find(a => a.App_Acronym === appAcronym);
+    const app = applications.find((a) => a.App_Acronym === appAcronym);
     return app && isInGroup(app.App_permit_Doing);
   };
 
   const canTransitionToClosed = (appAcronym) => {
-    const app = applications.find(a => a.App_Acronym === appAcronym);
+    const app = applications.find((a) => a.App_Acronym === appAcronym);
     return app && isInGroup(app.App_permit_Done);
   };
 
   const canRejectToDoing = (appAcronym) => {
-    const app = applications.find(a => a.App_Acronym === appAcronym);
+    const app = applications.find((a) => a.App_Acronym === appAcronym);
     return app && isInGroup(app.App_permit_Done);
   };
 
+  const canDropToToDo = (appAcronym) => {
+    const app = applications.find((a) => a.App_Acronym === appAcronym);
+    return app && isInGroup(app.App_permit_Doing);
+  };
+
   // Filter tasks
-  const filteredTasks = selectedApp === "all"
-    ? allTasks
-    : allTasks.filter(task => task.Task_app_Acronym === selectedApp);
+  const filteredTasks =
+    selectedApp === "all"
+      ? allTasks
+      : allTasks.filter((task) => task.Task_app_Acronym === selectedApp);
 
   // Group tasks by state
   const tasksByState = {
@@ -179,14 +204,14 @@ const KanbanBoard = () => {
   // Get plan color
   const getPlanColor = (planName, appAcronym) => {
     const plan = allPlans.find(
-      p => p.Plan_MVP_name === planName && p.app_acronym === appAcronym
+      (p) => p.Plan_MVP_name === planName && p.app_acronym === appAcronym
     );
     return plan?.Plan_color || "#cccccc";
   };
 
   // Get plans for specific app
   const getPlansForApp = (appAcronym) => {
-    return allPlans.filter(p => p.app_acronym === appAcronym);
+    return allPlans.filter((p) => p.app_acronym === appAcronym);
   };
 
   // Handle create task
@@ -293,7 +318,9 @@ const KanbanBoard = () => {
         setNoteText("");
         fetchAllData();
         // Refresh selected task
-        const updatedTasks = await taskAPI.getAllTasks(selectedTask.Task_app_Acronym);
+        const updatedTasks = await taskAPI.getAllTasks(
+          selectedTask.Task_app_Acronym
+        );
         const updatedTask = updatedTasks.tasks.find(
           (t) => t.Task_id === selectedTask.Task_id
         );
@@ -428,7 +455,10 @@ const KanbanBoard = () => {
                 label={task.Task_plan}
                 size="small"
                 sx={{
-                  backgroundColor: getPlanColor(task.Task_plan, task.Task_app_Acronym),
+                  backgroundColor: getPlanColor(
+                    task.Task_plan,
+                    task.Task_app_Acronym
+                  ),
                   color: "white",
                   height: "20px",
                   fontSize: "0.7rem",
@@ -444,7 +474,7 @@ const KanbanBoard = () => {
               variant="outlined"
               sx={{
                 borderColor: task.Task_owner ? undefined : "#9e9e9e",
-                color: task.Task_owner ? undefined : "#9e9e9e"
+                color: task.Task_owner ? undefined : "#9e9e9e",
               }}
             />
             <Typography variant="caption" color="text.secondary">
@@ -522,7 +552,7 @@ const KanbanBoard = () => {
                 Done
               </Button>
             )}
-            {canTransitionToToDo(appAcronym) && (
+            {canDropToToDo(appAcronym) && (
               <Button
                 size="small"
                 variant="outlined"
@@ -622,9 +652,9 @@ const KanbanBoard = () => {
   };
 
   // Check if user can create tasks for any application
-  const canCreateAnyTask = applications.some(app =>
-    isInGroup(app.App_permit_Open)
-  );
+  const canCreateAnyTask = applications.some((app) => {
+    return isInGroup(app.App_permit_Create);
+  });
 
   if (loading) {
     return (
@@ -681,6 +711,11 @@ const KanbanBoard = () => {
                       App_Description: "",
                       App_startDate: "",
                       App_endDate: "",
+                      App_permit_Create: "pl",
+                      App_permit_Open: "pm",
+                      App_permit_ToDo: "dev",
+                      App_permit_Doing: "dev",
+                      App_permit_Done: "pl",
                     });
                     setFormError(null);
                     setCreateAppDialog(true);
@@ -699,7 +734,7 @@ const KanbanBoard = () => {
                 </Button>
               )}
 
-              {(isInGroup("pl") || isInGroup("pm")) && applications.length > 0 && (
+              {isInGroup("pm") && applications.length > 0 && (
                 <Button
                   variant="contained"
                   startIcon={<AddIcon />}
@@ -709,7 +744,10 @@ const KanbanBoard = () => {
                       Plan_startDate: "",
                       Plan_endDate: "",
                       Plan_color: "#3498db",
-                      app_acronym: applications.length > 0 ? applications[0].App_Acronym : "",
+                      app_acronym:
+                        applications.length > 0
+                          ? applications[0].App_Acronym
+                          : "",
                     });
                     setFormError(null);
                     setCreatePlanDialog(true);
@@ -854,16 +892,115 @@ const KanbanBoard = () => {
               onChange={(e) =>
                 setAppForm({ ...appForm, App_endDate: e.target.value })
               }
-              sx={{ mb: 1 }}
+              sx={{ mb: 3 }}
             />
 
             <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ mt: 2, display: "block" }}
+              variant="subtitle2"
+              sx={{ mb: 1, fontWeight: "bold", color: "#5f6368" }}
             >
-              Note: User group permissions can be configured after creation
+              Permissions
             </Typography>
+
+            <TextField
+              margin="dense"
+              label="Create Task Permission"
+              fullWidth
+              select
+              value={appForm.App_permit_Create}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_permit_Create: e.target.value })
+              }
+              helperText="User group that can create tasks"
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="">None</MenuItem>
+              {userGroups.map((group) => (
+                <MenuItem key={group} value={group}>
+                  {group}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              margin="dense"
+              label="Release Task Permission (Open → ToDo)"
+              fullWidth
+              select
+              value={appForm.App_permit_Open}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_permit_Open: e.target.value })
+              }
+              helperText="User group that can release tasks from Open to ToDo"
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="">None</MenuItem>
+              {userGroups.map((group) => (
+                <MenuItem key={group} value={group}>
+                  {group}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              margin="dense"
+              label="Pickup Task Permission (ToDo → Doing)"
+              fullWidth
+              select
+              value={appForm.App_permit_ToDo}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_permit_ToDo: e.target.value })
+              }
+              helperText="User group that can pickup tasks from ToDo to Doing"
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="">None</MenuItem>
+              {userGroups.map((group) => (
+                <MenuItem key={group} value={group}>
+                  {group}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              margin="dense"
+              label="Work on Task Permission (Doing)"
+              fullWidth
+              select
+              value={appForm.App_permit_Doing}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_permit_Doing: e.target.value })
+              }
+              helperText="User group that can push to Done or drop back to ToDo"
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="">None</MenuItem>
+              {userGroups.map((group) => (
+                <MenuItem key={group} value={group}>
+                  {group}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              margin="dense"
+              label="Approve/Reject Task Permission (Done)"
+              fullWidth
+              select
+              value={appForm.App_permit_Done}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_permit_Done: e.target.value })
+              }
+              helperText="User group that can approve to Close or reject to Doing"
+              sx={{ mb: 1 }}
+            >
+              <MenuItem value="">None</MenuItem>
+              {userGroups.map((group) => (
+                <MenuItem key={group} value={group}>
+                  {group}
+                </MenuItem>
+              ))}
+            </TextField>
           </DialogContent>
 
           <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -1027,12 +1164,12 @@ const KanbanBoard = () => {
                   setTaskForm({
                     ...taskForm,
                     app_acronym: e.target.value,
-                    Task_plan: "" // Reset plan when app changes
+                    Task_plan: "", // Reset plan when app changes
                   });
                 }}
               >
                 {applications
-                  .filter(app => canCreateTaskForApp(app.App_Acronym))
+                  .filter((app) => canCreateTaskForApp(app.App_Acronym))
                   .map((app) => (
                     <MenuItem key={app.App_Acronym} value={app.App_Acronym}>
                       {app.App_Acronym}
@@ -1077,11 +1214,12 @@ const KanbanBoard = () => {
               disabled={!taskForm.app_acronym}
             >
               <MenuItem value="">None</MenuItem>
-              {taskForm.app_acronym && getPlansForApp(taskForm.app_acronym).map((plan) => (
-                <MenuItem key={plan.Plan_MVP_name} value={plan.Plan_MVP_name}>
-                  {plan.Plan_MVP_name}
-                </MenuItem>
-              ))}
+              {taskForm.app_acronym &&
+                getPlansForApp(taskForm.app_acronym).map((plan) => (
+                  <MenuItem key={plan.Plan_MVP_name} value={plan.Plan_MVP_name}>
+                    {plan.Plan_MVP_name}
+                  </MenuItem>
+                ))}
             </TextField>
           </DialogContent>
           <DialogActions>
@@ -1130,7 +1268,11 @@ const KanbanBoard = () => {
                   {selectedTask.Task_name}
                 </Typography>
 
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 2 }}
+                >
                   {selectedTask.Task_description || "No description"}
                 </Typography>
 
@@ -1138,8 +1280,10 @@ const KanbanBoard = () => {
                   <Chip
                     label={`Owner: ${selectedTask.Task_owner || "Unassigned"}`}
                     sx={{
-                      borderColor: selectedTask.Task_owner ? undefined : "#9e9e9e",
-                      color: selectedTask.Task_owner ? undefined : "#9e9e9e"
+                      borderColor: selectedTask.Task_owner
+                        ? undefined
+                        : "#9e9e9e",
+                      color: selectedTask.Task_owner ? undefined : "#9e9e9e",
                     }}
                     variant={selectedTask.Task_owner ? "filled" : "outlined"}
                   />
@@ -1186,7 +1330,8 @@ const KanbanBoard = () => {
                 </Button>
 
                 <Box sx={{ maxHeight: "300px", overflowY: "auto" }}>
-                  {selectedTask.Task_notes && selectedTask.Task_notes.length > 0 ? (
+                  {selectedTask.Task_notes &&
+                  selectedTask.Task_notes.length > 0 ? (
                     selectedTask.Task_notes.map((note, index) => (
                       <Paper
                         key={index}
@@ -1199,7 +1344,10 @@ const KanbanBoard = () => {
                             mb: 1,
                           }}
                         >
-                          <Typography variant="caption" sx={{ fontWeight: "bold" }}>
+                          <Typography
+                            variant="caption"
+                            sx={{ fontWeight: "bold" }}
+                          >
                             {note.username} • {note.state}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">

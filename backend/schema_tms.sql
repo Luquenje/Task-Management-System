@@ -12,10 +12,11 @@ CREATE TABLE IF NOT EXISTS `application` (
   `App_Rnumber` INT NOT NULL DEFAULT 0,
   `App_startDate` DATE,
   `App_endDate` DATE,
-  `App_permit_Open` VARCHAR(50),       -- User group that can create tasks (Open state)
-  `App_permit_toDoList` VARCHAR(50),   -- User group that can release tasks to ToDo
-  `App_permit_Doing` VARCHAR(50),      -- User group that can work on tasks (Doing state)
-  `App_permit_Done` VARCHAR(50),       -- User group that can approve/close tasks (Done state)
+  `App_permit_Create` VARCHAR(50),     -- User group that can create tasks
+  `App_permit_Open` VARCHAR(50),       -- User group that can release tasks from Open to ToDo
+  `App_permit_ToDo` VARCHAR(50),       -- User group that can pickup tasks from ToDo to Doing
+  `App_permit_Doing` VARCHAR(50),      -- User group that can push to Done or drop to ToDo
+  `App_permit_Done` VARCHAR(50),       -- User group that can approve to Close or reject to Doing
   PRIMARY KEY (`App_Acronym`)
 );
 
@@ -56,15 +57,16 @@ CREATE TABLE IF NOT EXISTS `task` (
 
 -- Sample Application
 -- Permissions:
---   App_permit_Open: 'pl' - Project Lead can create tasks
---   App_permit_toDoList: 'pm' - Project Manager can release tasks to ToDo
---   App_permit_Doing: 'dev' - Developers can pick up and work on tasks
+--   App_permit_Create: 'pl' - Project Lead can create tasks
+--   App_permit_Open: 'pm' - Project Manager can release tasks to ToDo
+--   App_permit_ToDo: 'dev' - Developers can pickup tasks to Doing
+--   App_permit_Doing: 'dev' - Developers can push to Done or drop to ToDo
 --   App_permit_Done: 'pl' - Project Lead can approve/reject completed tasks
 INSERT INTO `application` (`App_Acronym`, `App_Description`, `App_Rnumber`, `App_startDate`, `App_endDate`,
-  `App_permit_Open`, `App_permit_toDoList`, `App_permit_Doing`, `App_permit_Done`)
+  `App_permit_Create`, `App_permit_Open`, `App_permit_ToDo`, `App_permit_Doing`, `App_permit_Done`)
 VALUES
   ('DEMO', 'Demo Project for Task Management System', 0, '2025-01-01', '2025-12-31',
-   'pl', 'pm', 'dev', 'pl')
+   'pl', 'pm', 'dev', 'dev', 'pl')
 ON DUPLICATE KEY UPDATE `App_Acronym` = `App_Acronym`;
 
 -- Sample Plans
