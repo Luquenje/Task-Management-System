@@ -5,6 +5,7 @@ const bcrypt = require("bcrypt");
 const cookieParser = require("cookie-parser");
 
 const { generateToken, verifyToken } = require("./jwt");
+const { sendTaskDoneNotification } = require("./emailService");
 // const { authenticateJWT, requireAdmin, setDbConnection } = require('./middleware/auth');
 
 require("dotenv").config({ path: "./.env" });
@@ -1525,8 +1526,37 @@ app.patch(
               // Don't fail the request if note fails
             }
 
-            // TODO: Send email notification if transitioning to Done state
-            // This would require email configuration
+            // Send email notification if transitioning from Doing to Done
+            if (currentState === "Doing" && new_state === "Done") {
+              // Fetch all users with PL group
+              const getPLUsersQuery = `
+                SELECT username, email
+                FROM users
+                WHERE JSON_CONTAINS(user_groups, '"pl"') = 1
+                  AND Is_active = 1
+              `;
+
+              connection.query(getPLUsersQuery, (err, plUsers) => {
+                if (err) {
+                  console.error("Error fetching PL users for email:", err);
+                  // Don't fail the request if email fails
+                } else {
+                  // Send email notification asynchronously (don't wait for it)
+                  sendTaskDoneNotification(plUsers, {
+                    Task_id: taskId,
+                    Task_name: task.Task_name,
+                    Task_app_Acronym: acronym,
+                    Task_owner: task.Task_owner,
+                  }).then(result => {
+                    if (result.success) {
+                      console.log(`Email sent to ${result.recipients || 0} PL users`);
+                    }
+                  }).catch(emailErr => {
+                    console.error("Email notification error:", emailErr);
+                  });
+                }
+              });
+            }
 
             res.json({
               success: true,
