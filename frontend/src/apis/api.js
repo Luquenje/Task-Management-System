@@ -162,8 +162,8 @@ export const taskAPI = {
   },
 
   // Create task
-  createTask: async (acronym, taskData) => {
-    const response = await api.post(`/api/applications/${acronym}/tasks`, taskData);
+  createTask: async (taskData) => {
+    const response = await api.post(`/api/tasks`, taskData);
     return response.data;
   },
 

@@ -1202,18 +1202,26 @@ app.get("/api/applications/:acronym/tasks", authenticateJWT, (req, res) => {
 });
 
 // Create new task (Open state) - requires App_permit_Create permission
-app.post("/api/applications/:acronym/tasks", authenticateJWT, (req, res) => {
-  const { acronym } = req.params;
-  const { Task_name, Task_description, Task_plan } = req.body;
+app.post("/api/tasks", authenticateJWT, (req, res) => {
+  const { Task_app_Acronym, Task_name, Task_description, Task_plan } = req.body;
   const username = req.user.username;
 
   // Validation
+  if (!Task_app_Acronym) {
+    return res.status(400).json({
+      success: false,
+      error: "Application acronym is required",
+    });
+  }
+
   if (!Task_name) {
     return res.status(400).json({
       success: false,
       error: "Task name is required",
     });
   }
+
+  const acronym = Task_app_Acronym;
 
   // Get application details to check permissions and get running number
   const getAppQuery = "SELECT * FROM application WHERE App_Acronym = ?";

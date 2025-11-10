@@ -250,7 +250,8 @@ const KanbanBoard = () => {
         return;
       }
 
-      const response = await taskAPI.createTask(taskForm.app_acronym, {
+      const response = await taskAPI.createTask({
+        Task_app_Acronym: taskForm.app_acronym,
         Task_name: taskForm.Task_name,
         Task_description: taskForm.Task_description,
         Task_plan: taskForm.Task_plan || null,
