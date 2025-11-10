@@ -1352,6 +1352,14 @@ app.patch(
       });
     }
 
+    // Validate that note is provided for state transitions
+    if (!note || !note.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Note is required when changing task state",
+      });
+    }
+
     // Get current task and application details
     const getTaskAndAppQuery = `
       SELECT t.*, a.*

@@ -278,12 +278,18 @@ const KanbanBoard = () => {
     try {
       setFormError(null);
 
+      // Validate that note is provided
+      if (!noteText || !noteText.trim()) {
+        setFormError("Note is required when changing task state");
+        return;
+      }
+
       const response = await taskAPI.updateTaskState(
         task.Task_app_Acronym,
         task.Task_id,
         {
           new_state: newState,
-          note: noteText || undefined,
+          note: noteText,
         }
       );
 
@@ -511,9 +517,9 @@ const KanbanBoard = () => {
           </Box>
         </CardContent>
 
-        <CardActions sx={{ pt: 0, px: 2, pb: 1 }}>
+        {/* <CardActions sx={{ pt: 0, px: 2, pb: 1 }}>
           {renderStateTransitionButtons(task, state)}
-        </CardActions>
+        </CardActions> */}
       </Card>
     );
   };
@@ -537,6 +543,7 @@ const KanbanBoard = () => {
               color="info"
               startIcon={<PlayArrowIcon />}
               sx={buttonStyle}
+              disabled={!noteText.trim()}
               onClick={(e) => {
                 e.stopPropagation();
                 handleStateTransition(task, "Doing");
@@ -557,6 +564,7 @@ const KanbanBoard = () => {
                 color="success"
                 startIcon={<DoneIcon />}
                 sx={buttonStyle}
+                disabled={!noteText.trim()}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleStateTransition(task, "Done");
@@ -572,6 +580,7 @@ const KanbanBoard = () => {
                 color="warning"
                 startIcon={<BackIcon />}
                 sx={buttonStyle}
+                disabled={!noteText.trim()}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleStateTransition(task, "ToDo");
@@ -593,6 +602,7 @@ const KanbanBoard = () => {
                 color="success"
                 startIcon={<CloseIcon />}
                 sx={buttonStyle}
+                disabled={!noteText.trim()}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleStateTransition(task, "Closed");
@@ -608,6 +618,7 @@ const KanbanBoard = () => {
                 color="error"
                 startIcon={<BackIcon />}
                 sx={buttonStyle}
+                disabled={!noteText.trim()}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleStateTransition(task, "Doing");
@@ -1597,17 +1608,26 @@ const KanbanBoard = () => {
                   )}
 
                 {/* Notes Section */}
-                <Typography variant="h6" sx={{ mb: 2 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>
                   Notes (Audit Trail)
                 </Typography>
+
+                {selectedTask.Task_state !== "Closed" && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Note is required when changing task state
+                  </Alert>
+                )}
 
                 <TextField
                   fullWidth
                   multiline
-                  rows={2}
-                  placeholder="Add a note..."
+                  required
+                  rows={3}
+                  label="Add Note"
+                  placeholder="Enter your note here (required for state transitions)..."
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
+                  helperText={selectedTask.Task_state !== "Closed" ? "Required for state transitions" : ""}
                   sx={{ mb: 1 }}
                 />
 
@@ -1663,7 +1683,7 @@ const KanbanBoard = () => {
                   <Button
                     variant="contained"
                     color="primary"
-                    disabled={!selectedTask.Task_plan}
+                    disabled={!selectedTask.Task_plan || !noteText.trim()}
                     onClick={async (e) => {
                       e.stopPropagation();
                       await handleStateTransition(selectedTask, "ToDo");
