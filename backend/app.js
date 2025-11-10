@@ -1547,6 +1547,8 @@ app.patch(
                     Task_name: task.Task_name,
                     Task_app_Acronym: acronym,
                     Task_owner: task.Task_owner,
+                    note: noteText,
+                    username: username,
                   }).then(result => {
                     if (result.success) {
                       console.log(`Email sent to ${result.recipients || 0} PL users`);

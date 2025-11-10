@@ -22,6 +22,8 @@ const createTransporter = () => {
  * @param {String} taskDetails.Task_name - Task name
  * @param {String} taskDetails.Task_app_Acronym - Application acronym
  * @param {String} taskDetails.Task_owner - Task owner
+ * @param {String} taskDetails.note - Note from the user when moving to Done
+ * @param {String} taskDetails.username - Username of the person who moved the task
  */
 const sendTaskDoneNotification = async (plUsers, taskDetails) => {
   try {
@@ -62,7 +64,15 @@ const sendTaskDoneNotification = async (plUsers, taskDetails) => {
           <p><strong>Task Name:</strong> ${taskDetails.Task_name}</p>
           <p><strong>Application:</strong> ${taskDetails.Task_app_Acronym}</p>
           <p><strong>Owner:</strong> ${taskDetails.Task_owner || "Unassigned"}</p>
+          <p><strong>Completed By:</strong> ${taskDetails.username || "Unknown"}</p>
         </div>
+
+        ${taskDetails.note ? `
+        <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196f3;">
+          <h3 style="margin-top: 0; color: #1976d2;">Completion Note</h3>
+          <p style="white-space: pre-wrap; margin: 0;">${taskDetails.note}</p>
+        </div>
+        ` : ''}
 
         <p>Please review this task and approve or reject it accordingly.</p>
 
@@ -83,8 +93,12 @@ Task Details:
 - Task Name: ${taskDetails.Task_name}
 - Application: ${taskDetails.Task_app_Acronym}
 - Owner: ${taskDetails.Task_owner || "Unassigned"}
+- Completed By: ${taskDetails.username || "Unknown"}
 
-Please review this task and approve or reject it accordingly.
+${taskDetails.note ? `Completion Note:
+${taskDetails.note}
+
+` : ''}Please review this task and approve or reject it accordingly.
 
 ---
 This is an automated notification from the Task Management System.
