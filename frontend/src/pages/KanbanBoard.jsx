@@ -22,6 +22,7 @@ import {
   Select,
   FormControl,
   InputLabel,
+  Autocomplete,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -47,7 +48,7 @@ const KanbanBoard = () => {
   const [error, setError] = useState(null);
 
   // Filter state
-  const [selectedApp, setSelectedApp] = useState("all");
+  const [filterApp, setFilterApp] = useState("all");
 
   // Dialog states
   const [createTaskDialog, setCreateTaskDialog] = useState(false);
@@ -55,9 +56,12 @@ const KanbanBoard = () => {
   const [createPlanDialog, setCreatePlanDialog] = useState(false);
   const [viewPlansDialog, setViewPlansDialog] = useState(false);
   const [editPlanDialog, setEditPlanDialog] = useState(false);
+  const [viewAppsDialog, setViewAppsDialog] = useState(false);
+  const [editAppDialog, setEditAppDialog] = useState(false);
   const [taskDetailDialog, setTaskDetailDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [selectedApp, setSelectedApp] = useState(null);
 
   // Form states
   const [taskForm, setTaskForm] = useState({
@@ -71,12 +75,12 @@ const KanbanBoard = () => {
     App_Description: "",
     App_startDate: "",
     App_endDate: "",
-    // default premissions
-    App_permit_Create: "pl", // create task
-    App_permit_Open: "pm", // release task open -> todo
-    App_permit_ToDo: "dev", // pickup task todo -> doing
-    App_permit_Doing: "dev", // push to done doing -> done | drop task doing -> todo
-    App_permit_Done: "pl", // reject task done -> doing | approve task done -> close
+    // default permissions - stored as arrays, will be joined to comma-separated strings on submit
+    App_permit_Create: ["pl"], // create task
+    App_permit_Open: ["pm"], // release task open -> todo
+    App_permit_ToDo: ["dev"], // pickup task todo -> doing
+    App_permit_Doing: ["dev"], // push to done doing -> done | drop task doing -> todo
+    App_permit_Done: ["pl"], // reject task done -> doing | approve task done -> close
   });
   const [planForm, setPlanForm] = useState({
     Plan_MVP_name: "",
@@ -147,10 +151,13 @@ const KanbanBoard = () => {
     }
   };
 
-  // Check if user is in a specific group
+  // Check if user is in a specific group (supports comma-separated groups)
   const isInGroup = (groupName) => {
     if (!user || !groupName) return false;
-    return user.user_groups?.includes(groupName) || false;
+
+    // Support multiple groups separated by commas
+    const allowedGroups = groupName.split(',').map(g => g.trim());
+    return allowedGroups.some(group => user.user_groups?.includes(group));
   };
 
   // Check permissions for specific application
@@ -191,9 +198,9 @@ const KanbanBoard = () => {
 
   // Filter tasks
   const filteredTasks =
-    selectedApp === "all"
+    filterApp === "all"
       ? allTasks
-      : allTasks.filter((task) => task.Task_app_Acronym === selectedApp);
+      : allTasks.filter((task) => task.Task_app_Acronym === filterApp);
 
   // Group tasks by state
   const tasksByState = {
@@ -350,7 +357,17 @@ const KanbanBoard = () => {
         return;
       }
 
-      const response = await applicationAPI.createApplication(appForm);
+      // Convert permission arrays to comma-separated strings
+      const appData = {
+        ...appForm,
+        App_permit_Create: appForm.App_permit_Create.join(','),
+        App_permit_Open: appForm.App_permit_Open.join(','),
+        App_permit_ToDo: appForm.App_permit_ToDo.join(','),
+        App_permit_Doing: appForm.App_permit_Doing.join(','),
+        App_permit_Done: appForm.App_permit_Done.join(','),
+      };
+
+      const response = await applicationAPI.createApplication(appData);
 
       if (response.success) {
         setCreateAppDialog(false);
@@ -359,6 +376,11 @@ const KanbanBoard = () => {
           App_Description: "",
           App_startDate: "",
           App_endDate: "",
+          App_permit_Create: ["pl"],
+          App_permit_Open: ["pm"],
+          App_permit_ToDo: ["dev"],
+          App_permit_Doing: ["dev"],
+          App_permit_Done: ["pl"],
         });
         fetchAllData();
       }
@@ -427,6 +449,38 @@ const KanbanBoard = () => {
       }
     } catch (err) {
       setFormError(err.response?.data?.error || "Failed to update plan");
+    }
+  };
+
+  // Handle edit application
+  const handleEditApplication = async () => {
+    try {
+      setFormError(null);
+
+      // Convert permission arrays to comma-separated strings
+      const appData = {
+        App_Description: appForm.App_Description,
+        App_startDate: appForm.App_startDate || null,
+        App_endDate: appForm.App_endDate || null,
+        App_permit_Create: appForm.App_permit_Create.join(','),
+        App_permit_Open: appForm.App_permit_Open.join(','),
+        App_permit_ToDo: appForm.App_permit_ToDo.join(','),
+        App_permit_Doing: appForm.App_permit_Doing.join(','),
+        App_permit_Done: appForm.App_permit_Done.join(','),
+      };
+
+      const response = await applicationAPI.updateApplication(
+        selectedApp.App_Acronym,
+        appData
+      );
+
+      if (response.success) {
+        setEditAppDialog(false);
+        setSelectedApp(null);
+        fetchAllData();
+      }
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Failed to update application");
     }
   };
 
@@ -726,36 +780,60 @@ const KanbanBoard = () => {
 
             <Box sx={{ display: "flex", gap: 2 }}>
               {isInGroup("pl") && (
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => {
-                    setAppForm({
-                      App_Acronym: "",
-                      App_Description: "",
-                      App_startDate: "",
-                      App_endDate: "",
-                      App_permit_Create: "pl",
-                      App_permit_Open: "pm",
-                      App_permit_ToDo: "dev",
-                      App_permit_Doing: "dev",
-                      App_permit_Done: "pl",
-                    });
-                    setFormError(null);
-                    setCreateAppDialog(true);
-                  }}
-                  sx={{
-                    backgroundColor: "#5f6368",
-                    textTransform: "none",
-                    borderRadius: "20px",
-                    px: 3,
-                    "&:hover": {
-                      backgroundColor: "#4a4d50",
-                    },
-                  }}
-                >
-                  Add Application
-                </Button>
+                <>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => {
+                      setAppForm({
+                        App_Acronym: "",
+                        App_Description: "",
+                        App_startDate: "",
+                        App_endDate: "",
+                        App_permit_Create: ["pl"],
+                        App_permit_Open: ["pm"],
+                        App_permit_ToDo: ["dev"],
+                        App_permit_Doing: ["dev"],
+                        App_permit_Done: ["pl"],
+                      });
+                      setFormError(null);
+                      setCreateAppDialog(true);
+                    }}
+                    sx={{
+                      backgroundColor: "#5f6368",
+                      textTransform: "none",
+                      borderRadius: "20px",
+                      px: 3,
+                      "&:hover": {
+                        backgroundColor: "#4a4d50",
+                      },
+                    }}
+                  >
+                    Add Application
+                  </Button>
+                  {applications.length > 0 && (
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        setFormError(null);
+                        setViewAppsDialog(true);
+                      }}
+                      sx={{
+                        textTransform: "none",
+                        borderRadius: "20px",
+                        px: 3,
+                        borderColor: "#5f6368",
+                        color: "#5f6368",
+                        "&:hover": {
+                          borderColor: "#4a4d50",
+                          backgroundColor: "rgba(95, 99, 104, 0.04)",
+                        },
+                      }}
+                    >
+                      Manage Applications
+                    </Button>
+                  )}
+                </>
               )}
 
               {isInGroup("pm") && applications.length > 0 && (
@@ -837,9 +915,9 @@ const KanbanBoard = () => {
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel>Filter by Application</InputLabel>
             <Select
-              value={selectedApp}
+              value={filterApp}
               label="Filter by Application"
-              onChange={(e) => setSelectedApp(e.target.value)}
+              onChange={(e) => setFilterApp(e.target.value)}
               size="small"
             >
               <MenuItem value="all">All Applications</MenuItem>
@@ -948,105 +1026,95 @@ const KanbanBoard = () => {
               Permissions
             </Typography>
 
-            <TextField
-              margin="dense"
-              label="Create Task Permission"
-              fullWidth
-              select
+            <Autocomplete
+              multiple
+              options={userGroups}
               value={appForm.App_permit_Create}
-              onChange={(e) =>
-                setAppForm({ ...appForm, App_permit_Create: e.target.value })
+              onChange={(event, newValue) =>
+                setAppForm({ ...appForm, App_permit_Create: newValue })
               }
-              helperText="User group that can create tasks"
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  margin="dense"
+                  label="Create Task Permission"
+                  helperText="User groups that can create tasks (multiple allowed)"
+                />
+              )}
               sx={{ mb: 2 }}
-            >
-              <MenuItem value="">None</MenuItem>
-              {userGroups.map((group) => (
-                <MenuItem key={group} value={group}>
-                  {group}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
 
-            <TextField
-              margin="dense"
-              label="Release Task Permission (Open → ToDo)"
-              fullWidth
-              select
+            <Autocomplete
+              multiple
+              options={userGroups}
               value={appForm.App_permit_Open}
-              onChange={(e) =>
-                setAppForm({ ...appForm, App_permit_Open: e.target.value })
+              onChange={(event, newValue) =>
+                setAppForm({ ...appForm, App_permit_Open: newValue })
               }
-              helperText="User group that can release tasks from Open to ToDo"
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  margin="dense"
+                  label="Release Task Permission (Open → ToDo)"
+                  helperText="User groups that can release tasks from Open to ToDo (multiple allowed)"
+                />
+              )}
               sx={{ mb: 2 }}
-            >
-              <MenuItem value="">None</MenuItem>
-              {userGroups.map((group) => (
-                <MenuItem key={group} value={group}>
-                  {group}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
 
-            <TextField
-              margin="dense"
-              label="Pickup Task Permission (ToDo → Doing)"
-              fullWidth
-              select
+            <Autocomplete
+              multiple
+              options={userGroups}
               value={appForm.App_permit_ToDo}
-              onChange={(e) =>
-                setAppForm({ ...appForm, App_permit_ToDo: e.target.value })
+              onChange={(event, newValue) =>
+                setAppForm({ ...appForm, App_permit_ToDo: newValue })
               }
-              helperText="User group that can pickup tasks from ToDo to Doing"
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  margin="dense"
+                  label="Pickup Task Permission (ToDo → Doing)"
+                  helperText="User groups that can pickup tasks from ToDo to Doing (multiple allowed)"
+                />
+              )}
               sx={{ mb: 2 }}
-            >
-              <MenuItem value="">None</MenuItem>
-              {userGroups.map((group) => (
-                <MenuItem key={group} value={group}>
-                  {group}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
 
-            <TextField
-              margin="dense"
-              label="Work on Task Permission (Doing)"
-              fullWidth
-              select
+            <Autocomplete
+              multiple
+              options={userGroups}
               value={appForm.App_permit_Doing}
-              onChange={(e) =>
-                setAppForm({ ...appForm, App_permit_Doing: e.target.value })
+              onChange={(event, newValue) =>
+                setAppForm({ ...appForm, App_permit_Doing: newValue })
               }
-              helperText="User group that can push to Done or drop back to ToDo"
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  margin="dense"
+                  label="Work on Task Permission (Doing)"
+                  helperText="User groups that can push to Done or drop back to ToDo (multiple allowed)"
+                />
+              )}
               sx={{ mb: 2 }}
-            >
-              <MenuItem value="">None</MenuItem>
-              {userGroups.map((group) => (
-                <MenuItem key={group} value={group}>
-                  {group}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
 
-            <TextField
-              margin="dense"
-              label="Approve/Reject Task Permission (Done)"
-              fullWidth
-              select
+            <Autocomplete
+              multiple
+              options={userGroups}
               value={appForm.App_permit_Done}
-              onChange={(e) =>
-                setAppForm({ ...appForm, App_permit_Done: e.target.value })
+              onChange={(event, newValue) =>
+                setAppForm({ ...appForm, App_permit_Done: newValue })
               }
-              helperText="User group that can approve to Close or reject to Doing"
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  margin="dense"
+                  label="Approve/Reject Task Permission (Done)"
+                  helperText="User groups that can approve to Close or reject to Doing (multiple allowed)"
+                />
+              )}
               sx={{ mb: 1 }}
-            >
-              <MenuItem value="">None</MenuItem>
-              {userGroups.map((group) => (
-                <MenuItem key={group} value={group}>
-                  {group}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
           </DialogContent>
 
           <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -1367,6 +1435,293 @@ const KanbanBoard = () => {
             </Button>
             <Button
               onClick={handleEditPlan}
+              variant="contained"
+              sx={{
+                textTransform: "none",
+                backgroundColor: "#5f6368",
+                "&:hover": {
+                  backgroundColor: "#4a4d50",
+                },
+              }}
+            >
+              Update
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* View/Manage Applications Dialog */}
+        <Dialog
+          open={viewAppsDialog}
+          onClose={() => setViewAppsDialog(false)}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+            },
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>Manage Applications</DialogTitle>
+          <DialogContent>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: "block" }}>
+              View and edit existing applications
+            </Typography>
+
+            {applications.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+                No applications created yet
+              </Typography>
+            ) : (
+              <Box>
+                {applications.map((app) => (
+                  <Paper
+                    key={app.App_Acronym}
+                    sx={{
+                      p: 2,
+                      mb: 2,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1 }}>
+                        {app.App_Acronym}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        {app.App_Description || "No description"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {app.App_startDate && app.App_endDate
+                          ? `${new Date(app.App_startDate).toLocaleDateString()} - ${new Date(app.App_endDate).toLocaleDateString()}`
+                          : "No dates set"}
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        setSelectedApp(app);
+                        // Parse comma-separated permissions back to arrays
+                        setAppForm({
+                          App_Acronym: app.App_Acronym,
+                          App_Description: app.App_Description || "",
+                          App_startDate: app.App_startDate || "",
+                          App_endDate: app.App_endDate || "",
+                          App_permit_Create: app.App_permit_Create ? app.App_permit_Create.split(',').map(g => g.trim()) : [],
+                          App_permit_Open: app.App_permit_Open ? app.App_permit_Open.split(',').map(g => g.trim()) : [],
+                          App_permit_ToDo: app.App_permit_ToDo ? app.App_permit_ToDo.split(',').map(g => g.trim()) : [],
+                          App_permit_Doing: app.App_permit_Doing ? app.App_permit_Doing.split(',').map(g => g.trim()) : [],
+                          App_permit_Done: app.App_permit_Done ? app.App_permit_Done.split(',').map(g => g.trim()) : [],
+                        });
+                        setFormError(null);
+                        setEditAppDialog(true);
+                      }}
+                      sx={{
+                        textTransform: "none",
+                        borderColor: "#5f6368",
+                        color: "#5f6368",
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  </Paper>
+                ))}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => setViewAppsDialog(false)}
+              sx={{ textTransform: "none", color: "#5f6368" }}
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit Application Dialog */}
+        <Dialog
+          open={editAppDialog}
+          onClose={() => {
+            setEditAppDialog(false);
+            setSelectedApp(null);
+          }}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+            },
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>Edit Application</DialogTitle>
+          <DialogContent>
+            {formError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {formError}
+              </Alert>
+            )}
+
+            <TextField
+              margin="dense"
+              label="Application Acronym"
+              fullWidth
+              disabled
+              value={appForm.App_Acronym}
+              helperText="Application acronym cannot be changed"
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="Description"
+              fullWidth
+              multiline
+              rows={3}
+              value={appForm.App_Description}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_Description: e.target.value })
+              }
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="Start Date"
+              type="date"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={appForm.App_startDate}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_startDate: e.target.value })
+              }
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="dense"
+              label="End Date"
+              type="date"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={appForm.App_endDate}
+              onChange={(e) =>
+                setAppForm({ ...appForm, App_endDate: e.target.value })
+              }
+              sx={{ mb: 3 }}
+            />
+
+            <Typography
+              variant="subtitle2"
+              sx={{ mb: 1, fontWeight: "bold", color: "#5f6368" }}
+            >
+              Permissions
+            </Typography>
+
+            <Autocomplete
+              multiple
+              options={userGroups}
+              value={appForm.App_permit_Create}
+              onChange={(event, newValue) =>
+                setAppForm({ ...appForm, App_permit_Create: newValue })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  margin="dense"
+                  label="Create Task Permission"
+                  helperText="User groups that can create tasks (multiple allowed)"
+                />
+              )}
+              sx={{ mb: 2 }}
+            />
+
+            <Autocomplete
+              multiple
+              options={userGroups}
+              value={appForm.App_permit_Open}
+              onChange={(event, newValue) =>
+                setAppForm({ ...appForm, App_permit_Open: newValue })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  margin="dense"
+                  label="Release Task Permission (Open → ToDo)"
+                  helperText="User groups that can release tasks from Open to ToDo (multiple allowed)"
+                />
+              )}
+              sx={{ mb: 2 }}
+            />
+
+            <Autocomplete
+              multiple
+              options={userGroups}
+              value={appForm.App_permit_ToDo}
+              onChange={(event, newValue) =>
+                setAppForm({ ...appForm, App_permit_ToDo: newValue })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  margin="dense"
+                  label="Pickup Task Permission (ToDo → Doing)"
+                  helperText="User groups that can pickup tasks from ToDo to Doing (multiple allowed)"
+                />
+              )}
+              sx={{ mb: 2 }}
+            />
+
+            <Autocomplete
+              multiple
+              options={userGroups}
+              value={appForm.App_permit_Doing}
+              onChange={(event, newValue) =>
+                setAppForm({ ...appForm, App_permit_Doing: newValue })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  margin="dense"
+                  label="Work on Task Permission (Doing)"
+                  helperText="User groups that can push to Done or drop back to ToDo (multiple allowed)"
+                />
+              )}
+              sx={{ mb: 2 }}
+            />
+
+            <Autocomplete
+              multiple
+              options={userGroups}
+              value={appForm.App_permit_Done}
+              onChange={(event, newValue) =>
+                setAppForm({ ...appForm, App_permit_Done: newValue })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  margin="dense"
+                  label="Approve/Reject Task Permission (Done)"
+                  helperText="User groups that can approve to Close or reject to Doing (multiple allowed)"
+                />
+              )}
+              sx={{ mb: 1 }}
+            />
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => {
+                setEditAppDialog(false);
+                setSelectedApp(null);
+              }}
+              sx={{ textTransform: "none", color: "#5f6368" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditApplication}
               variant="contained"
               sx={{
                 textTransform: "none",

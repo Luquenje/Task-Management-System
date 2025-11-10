@@ -834,88 +834,111 @@ app.post("/api/applications", authenticateJWT, (req, res) => {
   );
 });
 
-// Update application (Admin only)
+// Update application (PL users can edit)
 app.put(
   "/api/applications/:acronym",
   authenticateJWT,
-  requireAdmin,
   (req, res) => {
     const { acronym } = req.params;
+    const username = req.user.username;
     const {
       App_Description,
       App_startDate,
       App_endDate,
+      App_permit_Create,
       App_permit_Open,
-      App_permit_toDoList,
+      App_permit_ToDo,
       App_permit_Doing,
       App_permit_Done,
     } = req.body;
 
-    // Build update query dynamically
-    let updateFields = [];
-    let updateValues = [];
-
-    if (App_Description !== undefined) {
-      updateFields.push("App_Description = ?");
-      updateValues.push(App_Description);
-    }
-    if (App_startDate !== undefined) {
-      updateFields.push("App_startDate = ?");
-      updateValues.push(App_startDate);
-    }
-    if (App_endDate !== undefined) {
-      updateFields.push("App_endDate = ?");
-      updateValues.push(App_endDate);
-    }
-    if (App_permit_Open !== undefined) {
-      updateFields.push("App_permit_Open = ?");
-      updateValues.push(App_permit_Open);
-    }
-    if (App_permit_toDoList !== undefined) {
-      updateFields.push("App_permit_toDoList = ?");
-      updateValues.push(App_permit_toDoList);
-    }
-    if (App_permit_Doing !== undefined) {
-      updateFields.push("App_permit_Doing = ?");
-      updateValues.push(App_permit_Doing);
-    }
-    if (App_permit_Done !== undefined) {
-      updateFields.push("App_permit_Done = ?");
-      updateValues.push(App_permit_Done);
-    }
-
-    if (updateFields.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "No fields to update",
-      });
-    }
-
-    updateValues.push(acronym);
-    const updateQuery = `UPDATE application SET ${updateFields.join(
-      ", "
-    )} WHERE App_Acronym = ?`;
-
-    connection.query(updateQuery, updateValues, (err, result) => {
+    // Check if user is in PL group
+    checkUserInGroup(username, "pl", (err, isInGroup) => {
       if (err) {
-        console.error("Error updating application:", err);
+        console.error("Error checking user group:", err);
         return res.status(500).json({
           success: false,
-          error: "Failed to update application",
-          message: err.message,
+          error: "Database error",
         });
       }
 
-      if (result.affectedRows === 0) {
-        return res.status(404).json({
+      if (!isInGroup) {
+        return res.status(403).json({
           success: false,
-          error: "Application not found",
+          error: "Only Project Leads (pl group) can edit applications",
         });
       }
 
-      res.json({
-        success: true,
-        message: "Application updated successfully",
+      // Build update query dynamically
+      let updateFields = [];
+      let updateValues = [];
+
+      if (App_Description !== undefined) {
+        updateFields.push("App_Description = ?");
+        updateValues.push(App_Description);
+      }
+      if (App_startDate !== undefined) {
+        updateFields.push("App_startDate = ?");
+        updateValues.push(App_startDate);
+      }
+      if (App_endDate !== undefined) {
+        updateFields.push("App_endDate = ?");
+        updateValues.push(App_endDate);
+      }
+      if (App_permit_Create !== undefined) {
+        updateFields.push("App_permit_Create = ?");
+        updateValues.push(App_permit_Create);
+      }
+      if (App_permit_Open !== undefined) {
+        updateFields.push("App_permit_Open = ?");
+        updateValues.push(App_permit_Open);
+      }
+      if (App_permit_ToDo !== undefined) {
+        updateFields.push("App_permit_ToDo = ?");
+        updateValues.push(App_permit_ToDo);
+      }
+      if (App_permit_Doing !== undefined) {
+        updateFields.push("App_permit_Doing = ?");
+        updateValues.push(App_permit_Doing);
+      }
+      if (App_permit_Done !== undefined) {
+        updateFields.push("App_permit_Done = ?");
+        updateValues.push(App_permit_Done);
+      }
+
+      if (updateFields.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "No fields to update",
+        });
+      }
+
+      updateValues.push(acronym);
+      const updateQuery = `UPDATE application SET ${updateFields.join(
+        ", "
+      )} WHERE App_Acronym = ?`;
+
+      connection.query(updateQuery, updateValues, (err, result) => {
+        if (err) {
+          console.error("Error updating application:", err);
+          return res.status(500).json({
+            success: false,
+            error: "Failed to update application",
+            message: err.message,
+          });
+        }
+
+        if (result.affectedRows === 0) {
+          return res.status(404).json({
+            success: false,
+            error: "Application not found",
+          });
+        }
+
+        res.json({
+          success: true,
+          message: "Application updated successfully",
+        });
       });
     });
   }
@@ -1088,7 +1111,11 @@ function checkUserInGroup(username, groupname, callback) {
     }
 
     const userGroups = results[0].user_groups || [];
-    const isInGroup = userGroups.includes(groupname);
+
+    // Support multiple groups separated by commas
+    // Split groupname by comma and check if user is in ANY of the groups
+    const allowedGroups = groupname.split(',').map(g => g.trim());
+    const isInGroup = allowedGroups.some(group => userGroups.includes(group));
 
     callback(null, isInGroup);
   });
