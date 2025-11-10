@@ -2130,7 +2130,7 @@ const KanbanBoard = () => {
                     <Box sx={{ maxHeight: "400px", overflowY: "auto" }}>
                       {selectedTask.Task_notes &&
                       selectedTask.Task_notes.length > 0 ? (
-                        selectedTask.Task_notes.map((note, index) => (
+                        selectedTask.Task_notes.slice().reverse().map((note, index) => (
                           <Paper
                             key={index}
                             sx={{ p: 2, mb: 1, backgroundColor: "#f5f5f5" }}
