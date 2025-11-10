@@ -935,7 +935,7 @@ const KanbanBoard = () => {
           </Box>
 
           {/* Application Filter */}
-          <FormControl sx={{ minWidth: 200 }}>
+          {/* <FormControl sx={{ minWidth: 200 }}>
             <InputLabel>Filter by Application</InputLabel>
             <Select
               value={filterApp}
@@ -950,7 +950,7 @@ const KanbanBoard = () => {
                 </MenuItem>
               ))}
             </Select>
-          </FormControl>
+          </FormControl> */}
         </Box>
 
         {/* Kanban Board */}
@@ -1947,7 +1947,7 @@ const KanbanBoard = () => {
         <Dialog
           open={taskDetailDialog}
           onClose={handleCloseTaskDetail}
-          maxWidth="md"
+          maxWidth="lg"
           fullWidth
         >
           {selectedTask && (
@@ -1977,180 +1977,191 @@ const KanbanBoard = () => {
                   </Alert>
                 )}
 
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {selectedTask.Task_name}
-                </Typography>
-
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 2 }}
-                >
-                  {selectedTask.Task_description || "No description"}
-                </Typography>
-
-                <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
-                  <Chip
-                    label={`Owner: ${selectedTask.Task_owner || "Unassigned"}`}
-                    sx={{
-                      borderColor: selectedTask.Task_owner
-                        ? undefined
-                        : "#9e9e9e",
-                      color: selectedTask.Task_owner ? undefined : "#9e9e9e",
-                    }}
-                    variant={selectedTask.Task_owner ? "filled" : "outlined"}
-                  />
-                  <Chip label={`Creator: ${selectedTask.Task_creator}`} />
-                  {selectedTask.Task_plan && (
-                    <Chip
-                      label={`Plan: ${selectedTask.Task_plan}`}
-                      sx={{
-                        backgroundColor: getPlanColor(
-                          selectedTask.Task_plan,
-                          selectedTask.Task_app_Acronym
-                        ),
-                        color: "white",
-                      }}
-                    />
-                  )}
-                </Box>
-
-                <Divider sx={{ my: 2 }} />
-
-                {/* Plan Selection Section - Only for Open state and PM */}
-                {selectedTask.Task_state === "Open" &&
-                  canTransitionToToDo(selectedTask.Task_app_Acronym) && (
-                    <>
-                      <Typography variant="h6" sx={{ mb: 2 }}>
-                        Release Task to ToDo
-                      </Typography>
-                      <TextField
-                        margin="dense"
-                        label="Plan"
-                        fullWidth
-                        required
-                        select
-                        value={selectedTask.Task_plan || ""}
-                        onChange={async (e) => {
-                          try {
-                            setFormError(null);
-                            const response = await taskAPI.updateTask(
-                              selectedTask.Task_app_Acronym,
-                              selectedTask.Task_id,
-                              {
-                                Task_plan: e.target.value || null,
-                              }
-                            );
-
-                            if (response.success) {
-                              // Refresh all data
-                              await fetchAllData();
-                              // Update selected task
-                              const updatedTasks = await taskAPI.getAllTasks(
-                                selectedTask.Task_app_Acronym
-                              );
-                              const updatedTask = updatedTasks.tasks.find(
-                                (t) => t.Task_id === selectedTask.Task_id
-                              );
-                              setSelectedTask(updatedTask);
-                            }
-                          } catch (err) {
-                            setFormError(
-                              err.response?.data?.error ||
-                                "Failed to update plan"
-                            );
-                          }
-                        }}
-                        helperText="Select a plan before releasing (required)"
-                        sx={{ mb: 2 }}
-                      >
-                        <MenuItem value="">None</MenuItem>
-                        {getPlansForApp(selectedTask.Task_app_Acronym).map(
-                          (plan) => (
-                            <MenuItem
-                              key={plan.Plan_MVP_name}
-                              value={plan.Plan_MVP_name}
-                            >
-                              {plan.Plan_MVP_name}
-                            </MenuItem>
-                          )
-                        )}
-                      </TextField>
-                      <Divider sx={{ my: 2 }} />
-                    </>
-                  )}
-
-                {/* Notes Section */}
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  Notes (Audit Trail)
-                </Typography>
-
-                {selectedTask.Task_state !== "Closed" && (
-                  <Alert severity="info" sx={{ mb: 2 }}>
-                    Note is required when changing task state
-                  </Alert>
-                )}
-
-                <TextField
-                  fullWidth
-                  multiline
-                  required
-                  rows={3}
-                  label="Add Note"
-                  placeholder="Enter your note here (required for state transitions)..."
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  helperText={
-                    selectedTask.Task_state !== "Closed"
-                      ? "Required for state transitions"
-                      : ""
-                  }
-                  sx={{ mb: 1 }}
-                />
-
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleAddNote}
-                  disabled={!noteText.trim()}
-                  sx={{ mb: 2 }}
-                >
-                  Add Note
-                </Button>
-
-                <Box sx={{ maxHeight: "300px", overflowY: "auto" }}>
-                  {selectedTask.Task_notes &&
-                  selectedTask.Task_notes.length > 0 ? (
-                    selectedTask.Task_notes.map((note, index) => (
-                      <Paper
-                        key={index}
-                        sx={{ p: 2, mb: 1, backgroundColor: "#f5f5f5" }}
-                      >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            mb: 1,
-                          }}
-                        >
-                          <Typography
-                            variant="caption"
-                            sx={{ fontWeight: "bold" }}
-                          >
-                            {note.username} • {note.state}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {new Date(note.timestamp).toLocaleString()}
-                          </Typography>
-                        </Box>
-                        <Typography variant="body2">{note.note}</Typography>
-                      </Paper>
-                    ))
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      No notes yet
+                {/* Two Column Layout */}
+                <Box sx={{ display: "flex", gap: 3 }}>
+                  {/* Left Column - Task Info */}
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6" sx={{ mb: 1 }}>
+                      {selectedTask.Task_name}
                     </Typography>
-                  )}
+
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
+                      {selectedTask.Task_description || "No description"}
+                    </Typography>
+
+                    <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
+                      <Chip
+                        label={`Owner: ${selectedTask.Task_owner || "Unassigned"}`}
+                        sx={{
+                          borderColor: selectedTask.Task_owner
+                            ? undefined
+                            : "#9e9e9e",
+                          color: selectedTask.Task_owner ? undefined : "#9e9e9e",
+                        }}
+                        variant={selectedTask.Task_owner ? "filled" : "outlined"}
+                      />
+                      <Chip label={`Creator: ${selectedTask.Task_creator}`} />
+                      {selectedTask.Task_plan && (
+                        <Chip
+                          label={`Plan: ${selectedTask.Task_plan}`}
+                          sx={{
+                            backgroundColor: getPlanColor(
+                              selectedTask.Task_plan,
+                              selectedTask.Task_app_Acronym
+                            ),
+                            color: "white",
+                          }}
+                        />
+                      )}
+                    </Box>
+
+                    {/* Plan Selection Section - Only for Open state and PM */}
+                    {selectedTask.Task_state === "Open" &&
+                      canTransitionToToDo(selectedTask.Task_app_Acronym) && (
+                        <>
+                          <Divider sx={{ my: 2 }} />
+                          <Typography variant="h6" sx={{ mb: 2 }}>
+                            Release Task to ToDo
+                          </Typography>
+                          <TextField
+                            margin="dense"
+                            label="Plan"
+                            fullWidth
+                            required
+                            select
+                            value={selectedTask.Task_plan || ""}
+                            onChange={async (e) => {
+                              try {
+                                setFormError(null);
+                                const response = await taskAPI.updateTask(
+                                  selectedTask.Task_app_Acronym,
+                                  selectedTask.Task_id,
+                                  {
+                                    Task_plan: e.target.value || null,
+                                  }
+                                );
+
+                                if (response.success) {
+                                  // Refresh all data
+                                  await fetchAllData();
+                                  // Update selected task
+                                  const updatedTasks = await taskAPI.getAllTasks(
+                                    selectedTask.Task_app_Acronym
+                                  );
+                                  const updatedTask = updatedTasks.tasks.find(
+                                    (t) => t.Task_id === selectedTask.Task_id
+                                  );
+                                  setSelectedTask(updatedTask);
+                                }
+                              } catch (err) {
+                                setFormError(
+                                  err.response?.data?.error ||
+                                    "Failed to update plan"
+                                );
+                              }
+                            }}
+                            helperText="Select a plan before releasing (required)"
+                            sx={{ mb: 2 }}
+                          >
+                            <MenuItem value="">None</MenuItem>
+                            {getPlansForApp(selectedTask.Task_app_Acronym).map(
+                              (plan) => (
+                                <MenuItem
+                                  key={plan.Plan_MVP_name}
+                                  value={plan.Plan_MVP_name}
+                                >
+                                  {plan.Plan_MVP_name}
+                                </MenuItem>
+                              )
+                            )}
+                          </TextField>
+                        </>
+                      )}
+
+                    {/* Add Note Section */}
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="h6" sx={{ mb: 2 }}>
+                      Add Note
+                    </Typography>
+
+                    {selectedTask.Task_state !== "Closed" && (
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        Note is required when changing task state
+                      </Alert>
+                    )}
+
+                    <TextField
+                      fullWidth
+                      multiline
+                      required
+                      rows={3}
+                      label="Add Note"
+                      placeholder="Enter your note here (required for state transitions)..."
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      helperText={
+                        selectedTask.Task_state !== "Closed"
+                          ? "Required for state transitions"
+                          : ""
+                      }
+                      sx={{ mb: 1 }}
+                    />
+
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleAddNote}
+                      disabled={!noteText.trim()}
+                    >
+                      Add Note
+                    </Button>
+                  </Box>
+
+                  {/* Right Column - Notes History */}
+                  <Box sx={{ flex: 1, borderLeft: "1px solid #e0e0e0", pl: 3 }}>
+                    <Typography variant="h6" sx={{ mb: 2 }}>
+                      Notes (Audit Trail)
+                    </Typography>
+
+                    <Box sx={{ maxHeight: "400px", overflowY: "auto" }}>
+                      {selectedTask.Task_notes &&
+                      selectedTask.Task_notes.length > 0 ? (
+                        selectedTask.Task_notes.map((note, index) => (
+                          <Paper
+                            key={index}
+                            sx={{ p: 2, mb: 1, backgroundColor: "#f5f5f5" }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                mb: 1,
+                              }}
+                            >
+                              <Typography
+                                variant="caption"
+                                sx={{ fontWeight: "bold" }}
+                              >
+                                {note.username} • {note.state}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {new Date(note.timestamp).toLocaleString()}
+                              </Typography>
+                            </Box>
+                            <Typography variant="body2">{note.note}</Typography>
+                          </Paper>
+                        ))
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          No notes yet
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
                 </Box>
               </DialogContent>
               <DialogActions>
