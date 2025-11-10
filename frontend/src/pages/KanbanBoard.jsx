@@ -156,8 +156,8 @@ const KanbanBoard = () => {
     if (!user || !groupName) return false;
 
     // Support multiple groups separated by commas
-    const allowedGroups = groupName.split(',').map(g => g.trim());
-    return allowedGroups.some(group => user.user_groups?.includes(group));
+    const allowedGroups = groupName.split(",").map((g) => g.trim());
+    return allowedGroups.some((group) => user.user_groups?.includes(group));
   };
 
   // Check permissions for specific application
@@ -360,11 +360,11 @@ const KanbanBoard = () => {
       // Convert permission arrays to comma-separated strings
       const appData = {
         ...appForm,
-        App_permit_Create: appForm.App_permit_Create.join(','),
-        App_permit_Open: appForm.App_permit_Open.join(','),
-        App_permit_ToDo: appForm.App_permit_ToDo.join(','),
-        App_permit_Doing: appForm.App_permit_Doing.join(','),
-        App_permit_Done: appForm.App_permit_Done.join(','),
+        App_permit_Create: appForm.App_permit_Create.join(","),
+        App_permit_Open: appForm.App_permit_Open.join(","),
+        App_permit_ToDo: appForm.App_permit_ToDo.join(","),
+        App_permit_Doing: appForm.App_permit_Doing.join(","),
+        App_permit_Done: appForm.App_permit_Done.join(","),
       };
 
       const response = await applicationAPI.createApplication(appData);
@@ -462,11 +462,11 @@ const KanbanBoard = () => {
         App_Description: appForm.App_Description,
         App_startDate: appForm.App_startDate || null,
         App_endDate: appForm.App_endDate || null,
-        App_permit_Create: appForm.App_permit_Create.join(','),
-        App_permit_Open: appForm.App_permit_Open.join(','),
-        App_permit_ToDo: appForm.App_permit_ToDo.join(','),
-        App_permit_Doing: appForm.App_permit_Doing.join(','),
-        App_permit_Done: appForm.App_permit_Done.join(','),
+        App_permit_Create: appForm.App_permit_Create.join(","),
+        App_permit_Open: appForm.App_permit_Open.join(","),
+        App_permit_ToDo: appForm.App_permit_ToDo.join(","),
+        App_permit_Doing: appForm.App_permit_Doing.join(","),
+        App_permit_Done: appForm.App_permit_Done.join(","),
       };
 
       const response = await applicationAPI.updateApplication(
@@ -867,6 +867,30 @@ const KanbanBoard = () => {
                   >
                     Add Plan
                   </Button>
+                  {/* <Button
+                    variant="outlined"
+                    onClick={() => {
+                      setFormError(null);
+                      setViewPlansDialog(true);
+                    }}
+                    sx={{
+                      textTransform: "none",
+                      borderRadius: "20px",
+                      px: 3,
+                      borderColor: "#5f6368",
+                      color: "#5f6368",
+                      "&:hover": {
+                        borderColor: "#4a4d50",
+                        backgroundColor: "rgba(95, 99, 104, 0.04)",
+                      },
+                    }}
+                  >
+                    Manage Plans
+                  </Button> */}
+                </>
+              )}
+              {(isInGroup("pm") || isInGroup("pl")) &&
+                applications.length > 0 && (
                   <Button
                     variant="outlined"
                     onClick={() => {
@@ -887,8 +911,7 @@ const KanbanBoard = () => {
                   >
                     Manage Plans
                   </Button>
-                </>
-              )}
+                )}
 
               {canCreateAnyTask && (
                 <Button
@@ -1268,23 +1291,36 @@ const KanbanBoard = () => {
         >
           <DialogTitle sx={{ pb: 1 }}>Manage Plans</DialogTitle>
           <DialogContent>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: "block" }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mb: 2, display: "block" }}
+            >
               View and edit existing plans
             </Typography>
 
             {allPlans.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ textAlign: "center", py: 4 }}
+              >
                 No plans created yet
               </Typography>
             ) : (
               <Box>
                 {applications.map((app) => {
-                  const appPlans = allPlans.filter(p => p.app_acronym === app.App_Acronym);
+                  const appPlans = allPlans.filter(
+                    (p) => p.app_acronym === app.App_Acronym
+                  );
                   if (appPlans.length === 0) return null;
 
                   return (
                     <Box key={app.App_Acronym} sx={{ mb: 3 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1, color: "#5f6368" }}>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{ fontWeight: "bold", mb: 1, color: "#5f6368" }}
+                      >
                         {app.App_Acronym}
                       </Typography>
                       {appPlans.map((plan) => (
@@ -1300,12 +1336,22 @@ const KanbanBoard = () => {
                           }}
                         >
                           <Box>
-                            <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                            <Typography
+                              variant="body1"
+                              sx={{ fontWeight: "bold" }}
+                            >
                               {plan.Plan_MVP_name}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
                               {plan.Plan_startDate && plan.Plan_endDate
-                                ? `${new Date(plan.Plan_startDate).toLocaleDateString()} - ${new Date(plan.Plan_endDate).toLocaleDateString()}`
+                                ? `${new Date(
+                                    plan.Plan_startDate
+                                  ).toLocaleDateString()} - ${new Date(
+                                    plan.Plan_endDate
+                                  ).toLocaleDateString()}`
                                 : "No dates set"}
                             </Typography>
                           </Box>
@@ -1314,10 +1360,26 @@ const KanbanBoard = () => {
                             size="small"
                             onClick={() => {
                               setSelectedPlan(plan);
+
+                              // Helper function to format date for input field (properly handles timezone)
+                              const formatDateForInput = (dateValue) => {
+                                if (!dateValue) return "";
+
+                                // Create a Date object from the value
+                                const date = new Date(dateValue);
+
+                                // Get local date components (not UTC)
+                                const year = date.getFullYear();
+                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                const day = String(date.getDate()).padStart(2, '0');
+
+                                return `${year}-${month}-${day}`;
+                              };
+
                               setPlanForm({
                                 Plan_MVP_name: plan.Plan_MVP_name,
-                                Plan_startDate: plan.Plan_startDate || "",
-                                Plan_endDate: plan.Plan_endDate || "",
+                                Plan_startDate: formatDateForInput(plan.Plan_startDate),
+                                Plan_endDate: formatDateForInput(plan.Plan_endDate),
                                 Plan_color: plan.Plan_color,
                                 app_acronym: plan.app_acronym,
                               });
@@ -1463,12 +1525,20 @@ const KanbanBoard = () => {
         >
           <DialogTitle sx={{ pb: 1 }}>Manage Applications</DialogTitle>
           <DialogContent>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: "block" }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mb: 2, display: "block" }}
+            >
               View and edit existing applications
             </Typography>
 
             {applications.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ textAlign: "center", py: 4 }}
+              >
                 No applications created yet
               </Typography>
             ) : (
@@ -1485,15 +1555,26 @@ const KanbanBoard = () => {
                     }}
                   >
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1 }}>
+                      <Typography
+                        variant="h6"
+                        sx={{ fontWeight: "bold", mb: 1 }}
+                      >
                         {app.App_Acronym}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 1 }}
+                      >
                         {app.App_Description || "No description"}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {app.App_startDate && app.App_endDate
-                          ? `${new Date(app.App_startDate).toLocaleDateString()} - ${new Date(app.App_endDate).toLocaleDateString()}`
+                          ? `${new Date(
+                              app.App_startDate
+                            ).toLocaleDateString()} - ${new Date(
+                              app.App_endDate
+                            ).toLocaleDateString()}`
                           : "No dates set"}
                       </Typography>
                     </Box>
@@ -1502,17 +1583,53 @@ const KanbanBoard = () => {
                       size="small"
                       onClick={() => {
                         setSelectedApp(app);
+
+                        // Helper function to format date for input field (properly handles timezone)
+                        const formatDateForInput = (dateValue) => {
+                          if (!dateValue) return "";
+
+                          // Create a Date object from the value
+                          const date = new Date(dateValue);
+
+                          // Get local date components (not UTC)
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+
+                          return `${year}-${month}-${day}`;
+                        };
+
                         // Parse comma-separated permissions back to arrays
                         setAppForm({
                           App_Acronym: app.App_Acronym,
                           App_Description: app.App_Description || "",
-                          App_startDate: app.App_startDate || "",
-                          App_endDate: app.App_endDate || "",
-                          App_permit_Create: app.App_permit_Create ? app.App_permit_Create.split(',').map(g => g.trim()) : [],
-                          App_permit_Open: app.App_permit_Open ? app.App_permit_Open.split(',').map(g => g.trim()) : [],
-                          App_permit_ToDo: app.App_permit_ToDo ? app.App_permit_ToDo.split(',').map(g => g.trim()) : [],
-                          App_permit_Doing: app.App_permit_Doing ? app.App_permit_Doing.split(',').map(g => g.trim()) : [],
-                          App_permit_Done: app.App_permit_Done ? app.App_permit_Done.split(',').map(g => g.trim()) : [],
+                          App_startDate: formatDateForInput(app.App_startDate),
+                          App_endDate: formatDateForInput(app.App_endDate),
+                          App_permit_Create: app.App_permit_Create
+                            ? app.App_permit_Create.split(",").map((g) =>
+                                g.trim()
+                              )
+                            : [],
+                          App_permit_Open: app.App_permit_Open
+                            ? app.App_permit_Open.split(",").map((g) =>
+                                g.trim()
+                              )
+                            : [],
+                          App_permit_ToDo: app.App_permit_ToDo
+                            ? app.App_permit_ToDo.split(",").map((g) =>
+                                g.trim()
+                              )
+                            : [],
+                          App_permit_Doing: app.App_permit_Doing
+                            ? app.App_permit_Doing.split(",").map((g) =>
+                                g.trim()
+                              )
+                            : [],
+                          App_permit_Done: app.App_permit_Done
+                            ? app.App_permit_Done.split(",").map((g) =>
+                                g.trim()
+                              )
+                            : [],
                         });
                         setFormError(null);
                         setEditAppDialog(true);
@@ -1939,7 +2056,8 @@ const KanbanBoard = () => {
                             }
                           } catch (err) {
                             setFormError(
-                              err.response?.data?.error || "Failed to update plan"
+                              err.response?.data?.error ||
+                                "Failed to update plan"
                             );
                           }
                         }}
@@ -1982,7 +2100,11 @@ const KanbanBoard = () => {
                   placeholder="Enter your note here (required for state transitions)..."
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
-                  helperText={selectedTask.Task_state !== "Closed" ? "Required for state transitions" : ""}
+                  helperText={
+                    selectedTask.Task_state !== "Closed"
+                      ? "Required for state transitions"
+                      : ""
+                  }
                   sx={{ mb: 1 }}
                 />
 
