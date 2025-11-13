@@ -163,7 +163,7 @@ export const taskAPI = {
 
   // Create task
   createTask: async (taskData) => {
-    const response = await api.post(`/api/tasks`, taskData);
+    const response = await api.post(`/api/CreateTask`, taskData);
     return response.data;
   },
 

@@ -4,12 +4,12 @@
 
 | Name | Method | Parameters | Behaviour | Expected Output Format |
 |------|--------|------------|-----------|------------------------|
-| **CreateTask** | `POST` | `username` (from JWT token) | Mandatory (via authentication) | JSON object: |
-| | | `password` (from JWT token) | Mandatory (via authentication) | `{` |
-| | | `Task_app_Acronym` | Mandatory | `"success": true,` |
-| | | `Task_name` | Mandatory | `"message": "Task created successfully",` |
-| | | `Task_description` | Optional | `"task": {` |
-| | | `Task_plan` | Optional | `"Task_id": "DEMO_5",` |
+| **CreateTask** | `POST` | JWT token (from cookie) | Mandatory (via authentication) | JSON object: |
+| | | `Task_app_Acronym` | Mandatory | `{` |
+| | | `Task_name` | Mandatory | `"success": true,` |
+| | | `Task_description` | Optional | `"message": "Task created successfully",` |
+| | | `Task_plan` | Optional | `"task": {` |
+| | | | | `"Task_id": "DEMO_5",` |
 | | | | | `"Task_name": "Implement login feature",` |
 | | | | | `"Task_state": "Open"` |
 | | | | | `}` |
@@ -19,7 +19,7 @@
 
 ## Usage
 
-**URL/Endpoint:** `POST http://localhost:5000/api/tasks`
+**URL/Endpoint:** `POST http://localhost:5000/api/CreateTask`
 
 **Authentication:** Requires JWT token stored in HTTP-only cookie
 
@@ -38,7 +38,7 @@ const axios = require('axios');
 // Create task
 const createTask = async () => {
   try {
-    const response = await axios.post('http://localhost:5000/api/tasks', {
+    const response = await axios.post('http://localhost:5000/api/CreateTask', {
       Task_app_Acronym: 'DEMO',
       Task_name: 'Implement login feature',
       Task_description: 'Create user authentication with JWT tokens',
@@ -49,7 +49,9 @@ const createTask = async () => {
 
     return response.data;
   } catch (error) {
-    console.error('Error:', error.response?.data);
+    // Error response will contain error code
+    // Example: { code: "TMS_001" }
+    console.error('Error code:', error.response?.data?.code);
     throw error;
   }
 };
@@ -79,7 +81,7 @@ createTask().then(result => {
 
 **Code:**
 ```bash
-curl -X POST http://localhost:5000/api/tasks \
+curl -X POST http://localhost:5000/api/CreateTask \
   -H "Content-Type: application/json" \
   -b "token=YOUR_JWT_TOKEN_HERE" \
   -d '{
@@ -107,102 +109,68 @@ curl -X POST http://localhost:5000/api/tasks \
 
 ## Error Codes
 
-### HTTP 400 - Bad Request
+All errors return a standardized error code. Use the Error Code Reference below to understand the meaning of each code.
 
-**Error:** Missing Application Acronym
+### Error Code Reference
+
+| Error Code | HTTP Status | Meaning |
+|------------|-------------|---------|
+| `TMS_001` | 400 | Required input field(s) missing. |
+| `TMS_002` | 404 | Referenced application does not exist. |
+| `TMS_003` | 403 | Authenticated user does not exist or is inactive. |
+| `TMS_004` | 403 | Authenticated user lacks the necessary application permission. |
+| `TMS_005` | 409 | A task ID collision occurred during creation (retry-safe). |
+| `TMS_006` | 500 | The system could not generate a unique task ID. |
+| `TMS_010` | 500 | Unexpected server-side failure. |
+
+### Error Response Examples
+
+**TMS_001:** Missing Required Fields
 ```json
 {
-  "success": false,
-  "error": "Application acronym is required"
+  "code": "TMS_001"
 }
 ```
 
-**Error:** Missing Task Name
+**TMS_002:** Application Does Not Exist
 ```json
 {
-  "success": false,
-  "error": "Task name is required"
+  "code": "TMS_002"
 }
 ```
 
----
-
-### HTTP 401 - Unauthorized
-
-**Error:** Not authenticated or JWT token invalid/expired
+**TMS_003:** User Does Not Exist or Is Inactive
 ```json
 {
-  "success": false,
-  "error": "Unauthorized"
+  "code": "TMS_003"
 }
 ```
 
----
-
-### HTTP 403 - Forbidden
-
-**Error:** No permission group configured for application
+**TMS_004:** User Lacks Permission
 ```json
 {
-  "success": false,
-  "error": "No group is permitted to create tasks for this application"
+  "code": "TMS_004"
 }
 ```
 
-**Error:** User not in required group
+**TMS_005:** Task ID Collision (Retry-Safe)
 ```json
 {
-  "success": false,
-  "error": "You must be in the 'pl' group to create tasks"
-}
-```
-*Note: The group name in the error message will match the required group from `App_permit_Create`*
-
----
-
-### HTTP 404 - Not Found
-
-**Error:** Application does not exist
-```json
-{
-  "success": false,
-  "error": "Application not found"
+  "code": "TMS_005"
 }
 ```
 
----
-
-### HTTP 500 - Internal Server Error
-
-**Error:** Database connection or query error
+**TMS_006:** Could Not Generate Unique Task ID
 ```json
 {
-  "success": false,
-  "error": "Database error"
+  "code": "TMS_006"
 }
 ```
 
-**Error:** Transaction commit failed
+**TMS_010:** Server Error
 ```json
 {
-  "success": false,
-  "error": "Failed to create task"
-}
-```
-
-**Error:** Failed to update running number
-```json
-{
-  "success": false,
-  "error": "Failed to update running number"
-}
-```
-
-**Error:** Failed to commit transaction
-```json
-{
-  "success": false,
-  "error": "Failed to commit transaction"
+  "code": "TMS_010"
 }
 ```
 
@@ -210,7 +178,7 @@ curl -X POST http://localhost:5000/api/tasks \
 
 ## Additional Information
 
-### Business Logic
+<!-- ### Business Logic
 
 1. **Task ID Generation:**
    - Format: `{App_Acronym}_{App_Rnumber + 1}`
@@ -233,7 +201,7 @@ curl -X POST http://localhost:5000/api/tasks \
 4. **Transaction Safety:**
    - Task creation uses database transaction for atomicity
    - Both task insertion and running number update are committed together
-   - Rollback occurs on any error
+   - Rollback occurs on any error -->
 
 ### Permission System
 
@@ -269,3 +237,12 @@ curl -X POST http://localhost:5000/api/tasks \
 | `Task_creator` | Auth context | JWT username |
 | `Task_owner` | Fixed | Always NULL |
 | `Task_createDate` | Auto-generated | Current timestamp (NOW()) |
+
+### Error Code System
+
+- All errors return only a `code` field
+- HTTP status codes are preserved and align with error codes
+- Clients should implement error code lookup for user-friendly messages
+- Error codes are consistent across all TMS APIs
+- **TMS_005** indicates a retry-safe collision - the client can retry the same request
+- **TMS_006** indicates a critical failure in ID generation - requires investigation
